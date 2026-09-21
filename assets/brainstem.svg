@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="660" viewBox="0 0 620 660" role="img" aria-labelledby="title description">
+  <title id="title">A nervous system for your AI</title>
+  <desc id="description">An original technical drawing of a branching brain and central stem. Fine neural paths connect context, Python agents, and local state. Signal-green junctions punctuate a warm-paper schematic over a deep-cobalt coordinate grid.</desc>
+  <defs>
+    <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path d="M26 0H0V26" fill="none" stroke="#9a9eff" stroke-opacity=".14" stroke-width=".7"/>
+    </pattern>
+    <pattern id="major-grid" width="104" height="104" patternUnits="userSpaceOnUse">
+      <path d="M104 0H0V104" fill="none" stroke="#9a9eff" stroke-opacity=".18" stroke-width=".8"/>
+    </pattern>
+    <g id="junction">
+      <circle r="7" fill="#070765" stroke="#dfff83" stroke-width="1.1"/>
+      <circle r="2.2" fill="#dfff83"/>
+    </g>
+    <g id="terminal">
+      <path d="M-5 0H5M0-5V5" stroke="#f4f2e9" stroke-width="1"/>
+      <circle r="10" fill="none" stroke="#f4f2e9" stroke-opacity=".4" stroke-width=".7"/>
+    </g>
+  </defs>
+
+  <path fill="#070765" d="M0 0h620v660H0z"/>
+  <path fill="url(#grid)" d="M0 0h620v660H0z"/>
+  <path fill="url(#major-grid)" d="M0 0h620v660H0z"/>
+
+  <g fill="none" stroke="#f4f2e9" stroke-width=".65">
+    <path d="M24 45V24h21M575 24h21v21M24 615v21h21M575 636h21v-21" stroke-opacity=".85"/>
+    <path d="M24 62h572M24 604h572" stroke-opacity=".3"/>
+    <path d="M310 74v500M100 250h420" stroke-opacity=".2" stroke-dasharray="3 7"/>
+    <circle cx="310" cy="250" r="180" stroke-opacity=".45"/>
+    <circle cx="310" cy="250" r="168" stroke-opacity=".22" stroke-dasharray="1 6"/>
+    <circle cx="310" cy="250" r="150" stroke-opacity=".18"/>
+    <path d="M310 64v19M310 417v19M123 250h18M480 250h18M178 118l13 13M429 369l13 13M178 382l13-13M429 131l13-13" stroke-opacity=".7"/>
+    <path d="M217 89l5 9M398 403l5 9M149 157l9 5M462 338l9 5M149 343l9-5M462 162l9-5M217 411l5-9M398 98l5-9" stroke-opacity=".4"/>
+  </g>
+
+  <g fill="#d7d8ff" font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="8" letter-spacing="1.1">
+    <text x="38" y="43">RAPP / NEURAL ARCHITECTURE</text>
+    <text x="582" y="43" text-anchor="end">FIG. 01</text>
+    <text x="38" y="97" font-size="7" fill="#b1b6ff">Y / 01</text>
+    <text x="38" y="255" font-size="7" fill="#b1b6ff">02</text>
+    <text x="38" y="410" font-size="7" fill="#b1b6ff">03</text>
+    <text x="582" y="97" text-anchor="end" font-size="7" fill="#b1b6ff">INPUT</text>
+    <text x="582" y="583" text-anchor="end" font-size="7" fill="#b1b6ff">OUTPUT</text>
+  </g>
+
+  <path d="M304 344c-17 0-25-17-30-30-21 6-42-1-52-18-22 0-40-20-36-41-21-13-26-39-13-58-8-21 6-45 25-52-1-24 19-41 40-39 11-24 41-28 62-11 6-8 15-8 21 0 21-17 51-13 62 11 21-2 41 15 40 39 19 7 33 31 25 52 13 19 8 45-13 58 4 21-14 41-36 41-10 17-31 24-52 18-5 13-13 30-30 30Z" fill="#111184" stroke="#f4f2e9" stroke-width="1.6" stroke-linejoin="round"/>
+
+  <g fill="none" stroke="#f4f2e9" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M302 109c-12-12-33-14-45-2-8 8-10 19-5 29M234 118c-17 2-25 19-20 35-21 8-29 23-22 41M195 205c-14 14-10 34 6 42-6 20 4 38 25 39M231 298c18 9 35 4 43-10"/>
+    <path d="M278 115c-13 0-23 12-18 25 5 12 19 13 23 27 4 16-8 30-22 34M238 143c-12 8-11 21-3 29 11 11 13 23 5 35-5 8-14 12-25 13M213 170c-9 8-6 19 4 23"/>
+    <path d="M293 149c8 10 7 24 0 35-10 16-12 33-3 48M267 216c-17-3-31 6-32 21-1 12 8 19 17 24M219 239c-11 8-8 24 4 29 14 6 26-1 35 7M277 246c-11 5-13 19-7 29 8 15 21 20 28 37"/>
+    <path d="M288 201c9 6 13 16 13 30v50M242 281c10-1 18 4 22 12M279 312c9 0 17 7 21 18"/>
+    <path d="M319 109c12-12 33-14 45-2 8 8 10 19 5 29M387 118c17 2 25 19 20 35 21 8 29 23 22 41M426 205c14 14 10 34-6 42 6 20-4 38-25 39M390 298c-18 9-35 4-43-10"/>
+    <path d="M343 115c13 0 23 12 18 25-5 12-19 13-23 27-4 16 8 30 22 34M383 143c12 8 11 21 3 29-11 11-13 23-5 35 5 8 14 12 25 13M408 170c9 8 6 19-4 23"/>
+    <path d="M328 149c-8 10-7 24 0 35 10 16 12 33 3 48M354 216c17-3 31 6 32 21 1 12-8 19-17 24M402 239c11 8 8 24-4 29-14 6-26-1-35 7M344 246c11 5 13 19 7 29-8 15-21 20-28 37"/>
+    <path d="M333 201c-9 6-13 16-13 30v50M379 281c-10-1-18 4-22 12M342 312c-9 0-17 7-21 18"/>
+  </g>
+
+  <g fill="none" stroke="#aeb3ff" stroke-width=".8" stroke-linecap="round">
+    <path d="M311 103v35M310 163v20M310 300v34" stroke-dasharray="2 5"/>
+    <path d="M226 155c-10 1-15 8-15 15M208 218c-10-2-13-8-12-15M254 180c8-2 12-10 9-17M273 232c6-2 10-6 10-12M241 247c1-8 8-12 15-10M287 271c-5-5-5-13-1-18"/>
+    <path d="M395 155c10 1 15 8 15 15M413 218c10-2 13-8 12-15M367 180c-8-2-12-10-9-17M348 232c-6-2-10-6-10-12M380 247c-1-8-8-12-15-10M334 271c5-5 5-13 1-18"/>
+  </g>
+
+  <g fill="none" stroke="#dfff83" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M265 154c0 23 23 32 23 57 0 32 22 38 22 68v66" stroke-width="2"/>
+    <path d="M355 154c0 23-23 32-23 57 0 32-22 38-22 68" stroke-width="2"/>
+    <path d="M220 244c30 0 37-19 58-14M400 244c-30 0-37-19-58-14" stroke-width="1.5"/>
+    <path d="M310 345v183" stroke-width="2.3"/>
+    <path d="M310 380c-36 0-38 33-74 33h-50M310 419c36 0 38 33 74 33h50" stroke-width="1.6"/>
+    <path d="M303 354v150M317 354v150" stroke-width=".7" stroke-opacity=".45"/>
+    <path d="M303 365h14M303 386h14M303 407h14M303 428h14M303 449h14M303 470h14M303 491h14" stroke-width=".8" stroke-opacity=".6"/>
+  </g>
+
+  <g>
+    <use href="#junction" x="265" y="154"/>
+    <use href="#junction" x="355" y="154"/>
+    <use href="#junction" x="220" y="244"/>
+    <use href="#junction" x="400" y="244"/>
+    <use href="#junction" x="310" y="279"/>
+    <use href="#junction" x="310" y="380"/>
+    <use href="#junction" x="310" y="419"/>
+    <use href="#junction" x="310" y="528"/>
+  </g>
+
+  <g fill="none" stroke="#f4f2e9" stroke-width=".7" stroke-opacity=".65">
+    <path d="M169 176h-32l-24-24H73"/>
+    <path d="M438 284h29l26 26h58"/>
+    <path d="M329 483h62l19 19h60"/>
+    <circle cx="169" cy="176" r="2" fill="#f4f2e9"/>
+    <circle cx="438" cy="284" r="2" fill="#f4f2e9"/>
+    <circle cx="329" cy="483" r="2" fill="#f4f2e9"/>
+  </g>
+
+  <g fill="#e2e3ff" font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="7" letter-spacing=".8">
+    <text x="73" y="144">PERCEIVE</text>
+    <text x="551" y="302" text-anchor="end">INTERPRET</text>
+    <text x="470" y="516" text-anchor="end">ROUTE / ACT</text>
+  </g>
+
+  <g fill="#070765" stroke="#f4f2e9" stroke-width=".8">
+    <path d="M58 385h128v56H58z" stroke-opacity=".65"/>
+    <path d="M434 424h128v56H434z" stroke-opacity=".65"/>
+    <path d="M246 547h128v40H246z" stroke-opacity=".65"/>
+    <path d="M310 538v9" stroke="#dfff83" stroke-width="1.5"/>
+  </g>
+
+  <g font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace">
+    <g fill="#dfff83" font-size="7" letter-spacing="1">
+      <text x="70" y="402">01 / CONTEXT</text>
+      <text x="446" y="441">02 / TOOLS</text>
+      <text x="258" y="564">03 / STATE</text>
+    </g>
+    <g fill="#f4f2e9" font-size="9" letter-spacing=".3">
+      <text x="70" y="422">Your instructions</text>
+      <text x="446" y="461">Python agents</text>
+      <text x="258" y="578" font-size="8">Local working files</text>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#aeb3ff" stroke-width=".7">
+    <path d="M83 459v20h130l21 21h52" stroke-dasharray="2 4"/>
+    <path d="M533 405v-28h-54l-19-19h-56" stroke-dasharray="2 4"/>
+    <path d="M65 624h34M65 621v6M82 621v6M99 621v6"/>
+    <path d="M517 624h38M517 621v6M536 621v6M555 621v6"/>
+  </g>
+
+  <use href="#terminal" x="107" y="345"/>
+  <use href="#terminal" x="511" y="204"/>
+
+  <g fill="#c9ccff" font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="7" letter-spacing=".85">
+    <text x="111" y="627">STRUCTURE, NOT MAGIC.</text>
+    <text x="500" y="627" text-anchor="end">CONCEPTUAL SCHEMATIC</text>
+  </g>
+</svg>
