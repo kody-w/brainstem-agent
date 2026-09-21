@@ -18,7 +18,9 @@ npx playwright install chromium
 npm test
 ```
 
-The test server serves the site under `/brainstem-agent/` to match GitHub Pages. See `playwright.config.js` for its port and startup command.
+Use Node.js 22 or newer. `npm run serve` starts a preview at `http://127.0.0.1:4173/brainstem-agent/`. The test server uses the same project prefix to match GitHub Pages; set `PORT` to use a different port.
+
+Local tests can reuse installed Chrome or Edge; CI always uses bundled Chromium. Set `PLAYWRIGHT_EXECUTABLE_PATH` to explicitly choose a local browser. See `playwright.config.js` for details.
 
 Production assets are local. There are no analytics, account forms, remote fonts, automatic installer execution, or requests to a visitor's local Brainstem. The walkthrough is explicitly sample data, not a running agent.
 
