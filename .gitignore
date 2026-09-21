@@ -1,0 +1,8 @@
+node_modules/
+.npm-cache/
+.playwright-runtime/
+test-results/
+playwright-report/
+_site/
+tests/.server-fixture-*/
+.DS_Store

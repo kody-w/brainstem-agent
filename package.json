@@ -1,0 +1,18 @@
+{
+  "name": "brainstem-agent-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "serve": "node tests/server.mjs",
+    "test": "npm run test:server && playwright test",
+    "test:server": "node --test tests/server.test.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0"
+  }
+}
