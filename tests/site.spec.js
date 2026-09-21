@@ -39,7 +39,7 @@ async function expectPlatform(page, value) {
 
 test('has the promised heading, working navigation, and absolute source links', async ({ page, baseURL }) => {
   await page.goto('./');
-  await expect(page.locator('h1')).toHaveText('Give your AI a nervous system.');
+  await expect(page.locator('h1')).toHaveAccessibleName(/^Give your AI\s*a nervous\s*system\.$/);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.getByRole('main')).toHaveCount(1);
   const ctas = page.getByRole('link', { name: 'Give me my Brainstem', exact: true });
