@@ -318,3 +318,37 @@ test('reduced motion removes animated movement and smooth scrolling', async ({ p
   });
   expect(movement).toEqual([]);
 });
+
+test('offers a visible keyboard skip link and a meaningful accessible page structure', async ({ page }) => {
+  await page.goto('./');
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to content', exact: true });
+  await expect(skip).toBeFocused();
+  const bounds = await skip.boundingBox();
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  await page.keyboard.press('Enter');
+  expect(new URL(page.url()).hash).toBe('#main');
+  await expect(page.getByRole('main')).toBeFocused();
+  const structure = await page.locator('body').ariaSnapshot();
+  expect(structure).toContain('navigation "Main navigation"');
+  expect(structure).toContain('main:');
+  await expect(page.getByRole('group', { name: 'Choose your operating system' })).toHaveCount(1);
+});
+
+test('keeps the layout contained at 200% CSS zoom and in mobile landscape', async ({ page }) => {
+  for (const layout of [
+    { width: 1440, height: 1000, zoom: '2' },
+    { width: 667, height: 375, zoom: '1' },
+  ]) {
+    await page.setViewportSize({ width: layout.width, height: layout.height });
+    await page.goto('./');
+    await page.evaluate(zoom => { document.documentElement.style.zoom = zoom; }, layout.zoom);
+    await page.getByRole('radio', { name: 'Windows', exact: true }).check();
+    const width = await page.evaluate(() => ({
+      content: document.documentElement.scrollWidth,
+      viewport: document.documentElement.clientWidth,
+    }));
+    expect(width.content).toBeLessThanOrEqual(width.viewport + 1);
+    await expect(page.locator('#command-windows')).toBeVisible();
+  }
+});
