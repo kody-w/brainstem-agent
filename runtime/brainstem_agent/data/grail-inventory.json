@@ -1,0 +1,42 @@
+{
+  "repository": "kody-w/rapp-installer",
+  "commit": "49db80c8c6b6caa7647369beaf477d374a8f293c",
+  "directory": "rapp_brainstem",
+  "version": "0.6.16",
+  "kernel": {
+    "path": "brainstem.py",
+    "sha256": "bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4"
+  },
+  "files": {
+    ".env.example": "2c43b8d99b823c3e865cc8d9ee6e2ed55016e742378aac30201a915947530607",
+    ".gitignore": "8199ac2d7eb258f8360c64db4ddd9ff43c41740126dc414c1a2d99aeb337b94d",
+    ".vscode/settings.json": "820314864617b3f3be1f9e343d8e8f003042e13e20ea3309880384250cef368a",
+    "CLAUDE.md": "3d09e24d4b2640f37037b86f03ab3f006b39963d8f17d9f7676e4ac1c7dd93e1",
+    "CONSTITUTION.md": "258d73e6a4c1305da2f0ce296b39acf102ca0a5b3ca661d28ce41446e8f12f8f",
+    "README.md": "6a537d9537c9ecbcecb8f50eb46b5b2b11dc5de536dbeb4cb98f4cea1ed606ae",
+    "VERSION": "e94a7f87af28a51ae948939b0fc6f3d7b9853add0d06a4ffb6df7c67c68ffcc5",
+    "agents/basic_agent.py": "701488bc00d536a7b23295e7da99c62f24e9b00f233daa325886430c736b78eb",
+    "agents/context_memory_agent.py": "83563b7836cd6c79c78eb70369ccbf0ad7eba02d6adc562b1e9dc41a77617769",
+    "agents/experimental/copilot_research_agent.py": "2e78b27fb642eed0a5f4dcbdb889111d7b31589af08356a25cb1b11557bdc749",
+    "agents/hacker_news_agent.py": "314cb08b0dc1167e3fc6799160fd178c54dfb0edc13d83c656b07b56a56620e9",
+    "agents/manage_memory_agent.py": "fe30c952f1ddd0507d05f7a84bc0406c2b5d5c82da5ad28f5380b050acb23f4f",
+    "brainstem.py": "bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4",
+    "index.html": "12a0019479dfbf4fa7e23607c66c7bd3e51c6255258a318bfb3fc4ce1c24c61b",
+    "local_storage.py": "c38667c1f65a703174c1d4a8c42cbf36d499178ead41534d0086763e681b7ccb",
+    "requirements-dev.txt": "c6c11b974838aee8671a6f5bedd7cb8144d6d53e518e16b554424e25fcfb9b1d",
+    "requirements.txt": "6bc9a8d661873b4cfd6681f8c94b0a347cfcf6fb3a463b19c45bdc4a9cb165ef",
+    "soul.md": "37d8138afdecebaa0d6216eaa3278637fe4cd2df5b946f402dcff5bc0b011d96",
+    "start.ps1": "9895335f9f5e905b1712dfd1fe0d94bbd45ad53f404f1d4588b5e11318228008",
+    "start.sh": "fdb6683d0f630a82dfeb0427b70692d95ccf958c81325195055f3cc8a1fedfd5",
+    "tests/conftest.py": "943141aca68c09c55479c02743bf552bd48ee0d30053e61f37faa3100eb8e901",
+    "tests/soul_defaults.sha256": "1c7a740b4cfd4ee798f9999ce27702fd6a5cbf0494fd4c44347ae4b130f712df",
+    "tests/soul_hash.py": "da1ba645304add89a6b5f69dc81db162f087ebe9fd5f5ee8bcc90d7bddacc647",
+    "tests/stream_matrix.py": "c5498b2028e923057b323d8d59ca4131d96371bc49ba8732f3e0b9c4136cb536",
+    "tests/test_local_agents.py": "a9264b7a7251bf91667e71398f08da4ebe8184722d3ede8d1a25f4965d9079af",
+    "tests/test_model_selection.py": "bd7d1ca3029308347e1a0b89696d3cc3e6038355607c286268e5d693502620a0",
+    "tests/test_no_copilot_onboarding.py": "c9ab3cc0099737768ef11646626d62fa50d291dfca3dcc322830a61aacfc7b30",
+    "tests/test_polish.py": "53c936262177da8df82002d8d85a5460f70cd7b01989f5d1f28db718bbb58337",
+    "tests/test_security_hardening.py": "cb9be97ae7283f89369ed193dfc455dc4ab1b432c422867165bfd11d316f925d",
+    "tests/test_streaming.py": "b70f6ce730a82495fd85d4d96579dd256b54c6836f43d48394933eae7df89d1e"
+  }
+}

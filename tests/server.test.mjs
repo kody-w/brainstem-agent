@@ -20,6 +20,7 @@ before(async () => {
     writeFile(join(root, 'assets', 'site.js'), 'export const fixture = true;\n'),
     writeFile(join(root, 'assets', 'site.css'), 'body { color: black; }\n'),
     writeFile(join(root, 'assets', 'mark.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>'),
+    writeFile(join(root, 'assets', 'capabilities.json'), '{"schema":"fixture"}\n'),
     writeFile(join(root, 'assets', 'image.png'), Buffer.from([137, 80, 78, 71])),
     writeFile(join(root, 'assets', 'font.woff2'), Buffer.from('wOF2')),
     writeFile(join(root, 'assets', 'OFL.txt'), 'License fixture\n'),
@@ -83,6 +84,7 @@ test('serves explicit asset MIME types', async () => {
     'site.js': 'application/javascript; charset=utf-8',
     'site.css': 'text/css; charset=utf-8',
     'mark.svg': 'image/svg+xml',
+    'capabilities.json': 'application/json',
     'image.png': 'image/png',
     'font.woff2': 'font/woff2',
     'OFL.txt': 'text/plain; charset=utf-8',
@@ -91,6 +93,14 @@ test('serves explicit asset MIME types', async () => {
     assert.equal(response.status, 200, filename);
     assert.equal(response.headers['content-type'], type, filename);
   }
+});
+
+test('serves the capability manifest as parseable JSON', async () => {
+  const response = await fetchRaw('/brainstem-agent/assets/capabilities.json');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['content-type'], 'application/json');
+  assert.equal(response.headers['x-content-type-options'], 'nosniff');
+  assert.deepEqual(JSON.parse(response.body), { schema: 'fixture' });
 });
 
 test('HEAD preserves headers without returning a body', async () => {

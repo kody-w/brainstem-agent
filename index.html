@@ -4,19 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0000f2">
-  <title>RAPP Brainstem — Give your AI a nervous system.</title>
-  <meta name="description" content="Your instructions. Your tools. Your machine. Meet RAPP Brainstem, a local-first AI agent engine with a browser interface and extensible Python agents.">
+  <title>RAPP Brainstem — local-first agent engine, with an experimental always-on runtime for macOS</title>
+  <meta name="description" content="RAPP Brainstem is a local-first AI agent engine. Brainstem Agent, its experimental always-on runtime (0.1.0, macOS only), runs the unchanged Brainstem core in the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, web and MCP. Inference is remote, through your GitHub Copilot sign-in.">
   <link rel="canonical" href="https://kody-w.github.io/brainstem-agent/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="RAPP Brainstem">
-  <meta property="og:title" content="RAPP Brainstem — Give your AI a nervous system.">
-  <meta property="og:description" content="Your instructions. Your tools. Your machine. A local-first engine for AI agents.">
+  <meta property="og:title" content="RAPP Brainstem — now with an experimental always-on runtime for macOS">
+  <meta property="og:description" content="Install the core, then add Brainstem Agent on your Mac: the unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.1.0; inference is remote.">
   <meta property="og:url" content="https://kody-w.github.io/brainstem-agent/">
   <meta property="og:image" content="https://kody-w.github.io/brainstem-agent/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="RAPP Brainstem: Give your AI a nervous system. An original branching neural diagram on cobalt blue.">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="RAPP Brainstem — now with an experimental always-on runtime for macOS">
+  <meta name="twitter:description" content="The unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.1.0, macOS only; inference is remote.">
+  <meta name="twitter:image" content="https://kody-w.github.io/brainstem-agent/assets/social-card.png">
+  <meta name="twitter:image:alt" content="RAPP Brainstem: Give your AI a nervous system. An original branching neural diagram on cobalt blue.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/site.css">
   <script src="assets/site.js" defer></script>
@@ -37,12 +41,14 @@
         <span>RAPP<br>Brainstem</span>
       </a>
       <div class="nav-links">
-        <a href="#how-it-works">How it works</a>
-        <a href="#example">Example</a>
-        <a href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md#install">Docs</a>
-        <a href="https://github.com/kody-w/rapp-installer">GitHub <span aria-hidden="true">↗</span></a>
+        <a href="#install">Install</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#runs">Recorded runs</a>
+        <a href="#limits">Limits</a>
+        <a href="#questions">FAQ</a>
+        <a href="https://github.com/kody-w/brainstem-agent">GitHub <span aria-hidden="true">↗</span></a>
       </div>
-      <a class="nav-cta" href="#install">Get Brainstem <span aria-hidden="true">↗</span></a>
+      <a class="nav-cta" href="#install">Get Brainstem <span aria-hidden="true">↓</span></a>
     </nav>
   </header>
 
@@ -50,14 +56,20 @@
     <section class="hero" id="top" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> A local-first agent engine</p>
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> A local-first agent engine, now with an always-on runtime for macOS</p>
           <h1 id="hero-title">Give your AI<br>a nervous<br><span>system.</span></h1>
-          <p class="hero-description">Your instructions. Your tools. Your machine.<br>Connect them with a Brainstem, and put your AI to work.</p>
+          <p class="hero-description">Your instructions. Your tools. Your machine. Brainstem Agent, the new experimental runtime for macOS, runs the unchanged Brainstem core inside the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, web and MCP.</p>
           <div class="hero-actions">
             <a class="button button-paper" href="#install">Give me my Brainstem <span aria-hidden="true">↗</span></a>
-            <a class="text-link" href="#how-it-works">Explore the anatomy <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="#capabilities">See what works today <span aria-hidden="true">↓</span></a>
           </div>
-          <p class="hero-footnote">Runs locally. Extends with Python. Built to be yours.</p>
+          <ul class="hero-facts" aria-label="At a glance">
+            <li>macOS only</li>
+            <li>Experimental <span data-manifest="runtime.version">0.1.0</span></li>
+            <li>Uses your Brainstem's GitHub Copilot sign-in</li>
+            <li>Inference is remote</li>
+            <li>Not a hosted service</li>
+          </ul>
         </div>
         <figure class="hero-art">
           <img src="assets/brainstem.svg" width="560" height="620" alt="A branching stem connects instructions, tools, and local state into one agent engine." fetchpriority="high">
@@ -66,7 +78,7 @@
       </div>
       <div class="hero-bottom wrap">
         <span class="hero-index">RAPP / BRAINSTEM</span>
-        <span class="hero-note">A small core. A world of possibilities.</span>
+        <span class="hero-note">Check the requirements. Install the core. Add the agent runtime.</span>
         <a class="text-link" href="#install">Start here <span aria-hidden="true">↓</span></a>
       </div>
     </section>
@@ -74,166 +86,585 @@
     <section class="install-section" id="install" aria-labelledby="install-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">01 / MAKE THE CONNECTION</p>
+          <p class="eyebrow">01 / INSTALL</p>
           <h2 id="install-title">A terminal away<br>from your own Brainstem.</h2>
-          <p>Choose your platform. Review the installer. Run the command.</p>
+          <p>Check the requirements first. Then two steps: install RAPP Brainstem, the core, and add Brainstem Agent, the always-on runtime, on your Mac. Each step says how you know it worked.</p>
         </div>
-        <div class="install-layout">
-          <div class="install-panel">
-            <fieldset class="platform-picker">
-              <legend class="sr-only">Choose your operating system</legend>
-              <label><input type="radio" name="platform" value="macos" checked><span>macOS</span></label>
-              <label><input type="radio" name="platform" value="linux"><span>Linux</span></label>
-              <label><input type="radio" name="platform" value="windows"><span>Windows</span></label>
-            </fieldset>
-            <div class="install-commands">
-              <article class="command-panel" data-platform="macos" aria-labelledby="macos-title">
-                <h3 id="macos-title" class="shell-label">macOS / Bash</h3>
-                <div class="command-row">
-                  <pre tabindex="0" aria-label="macOS installation command"><code id="command-macos">curl -fsSL https://kody-w.github.io/rapp-installer/install.sh | bash</code></pre>
-                  <button class="copy-button" type="button" data-copy="command-macos" hidden>Copy command</button>
-                </div>
-                <p class="command-caption">May install Homebrew or request Xcode command-line tools. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.sh">Inspect the installer <span aria-hidden="true">↗</span></a></p>
-              </article>
-              <article class="command-panel" data-platform="linux" aria-labelledby="linux-title">
-                <h3 id="linux-title" class="shell-label">Linux / Bash</h3>
-                <div class="command-row">
-                  <pre tabindex="0" aria-label="Linux installation command"><code id="command-linux">curl -fsSL https://kody-w.github.io/rapp-installer/install.sh | bash</code></pre>
-                  <button class="copy-button" type="button" data-copy="command-linux" hidden>Copy command</button>
-                </div>
-                <p class="command-caption">Python setup supports apt and dnf. Some distributions need manual prerequisite setup. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.sh">Inspect the installer <span aria-hidden="true">↗</span></a></p>
-              </article>
-              <article class="command-panel" data-platform="windows" aria-labelledby="windows-title">
-                <h3 id="windows-title" class="shell-label">Windows / PowerShell</h3>
-                <div class="command-row">
-                  <pre tabindex="0" aria-label="Windows installation command"><code id="command-windows">irm https://raw.githubusercontent.com/kody-w/rapp-installer/main/install.ps1 | iex</code></pre>
-                  <button class="copy-button" type="button" data-copy="command-windows" hidden>Copy command</button>
-                </div>
-                <p class="command-caption">Documented setup: Windows 11 with winget. Run in PowerShell, not Command Prompt. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.ps1">Inspect the installer <span aria-hidden="true">↗</span></a></p>
-              </article>
-            </div>
-            <p id="copy-status" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
-            <p class="fine-print">Grail stable edition · Existing upstream installer · Follows the production main branch</p>
+
+        <div class="requirements" id="requirements">
+          <div class="requirements-head">
+            <p class="step-tag">Before any command</p>
+            <h3 id="requirements-title">Requirements checklist</h3>
           </div>
-          <aside class="install-notes" aria-labelledby="before-you-start">
-            <h3 id="before-you-start">A few things to know.</h3>
-            <ul>
-              <li>You'll need a GitHub account with <strong>Copilot access</strong>.</li>
-              <li>Internet access and permission to install dependencies are required.</li>
-              <li>The runtime needs Python 3.11+ and Git. Supported installers can set these up.</li>
-            </ul>
-            <p>After setup, run <code>brainstem</code> and open <code>http://localhost:7071</code> to chat.</p>
-            <p class="fine-print">Core chat needs no separate provider API key. Optional integrations may require their own credentials.</p>
-            <a class="text-link" href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md#install">Read the setup guide <span aria-hidden="true">↗</span></a>
-          </aside>
+          <ul class="checklist">
+            <li><strong>A Mac for the agent runtime.</strong> macOS only, qualified on Apple silicon, with <code>/usr/bin/sandbox-exec</code>, which is built into macOS. On Linux or Windows, step 1 works; stop there.</li>
+            <li><strong>Python 3.11 or newer.</strong> The commands use <code>python3.11</code>; Python 3.13 is verified too.</li>
+            <li><strong>Git and internet access.</strong> Setup downloads the pinned core, and inference is remote.</li>
+            <li><strong>A GitHub account with Copilot access.</strong> You sign in through RAPP Brainstem in step 1. The agent reuses that sign-in, so there is no API key to create.</li>
+            <li><strong>Room for experimental software.</strong> Version <span data-manifest="runtime.version">0.1.0</span>; interfaces may change. It is not a hosted service.</li>
+          </ul>
         </div>
+
+        <ol class="install-steps" role="list">
+          <li class="install-step" id="step-core">
+            <div class="step-copy">
+              <p class="step-tag">Step 1 · macOS, Linux or Windows</p>
+              <h3 id="step-core-title">Install RAPP Brainstem, the core.</h3>
+              <p>This is the existing core installer, unchanged. Pick your system, review the installer if you like, and run the command.</p>
+              <ol class="substeps">
+                <li>Run the installer for your system.</li>
+                <li>Run <code>brainstem</code>.</li>
+                <li>Open <code>http://localhost:7071</code> and complete the GitHub sign-in.</li>
+              </ol>
+              <p class="done-when"><strong>Done when</strong> the GitHub sign-in at <code>http://localhost:7071</code> is complete. Keep RAPP Brainstem installed: step 2 reuses its sign-in, read-only.</p>
+            </div>
+            <div class="install-panel">
+              <fieldset class="platform-picker">
+                <legend class="sr-only">Choose your operating system</legend>
+                <label><input type="radio" name="platform" value="macos" checked><span>macOS</span></label>
+                <label><input type="radio" name="platform" value="linux"><span>Linux</span></label>
+                <label><input type="radio" name="platform" value="windows"><span>Windows</span></label>
+              </fieldset>
+              <div class="install-commands">
+                <article class="command-panel" data-platform="macos" aria-labelledby="macos-title">
+                  <div class="command-head">
+                    <h4 id="macos-title" class="shell-label">macOS / Bash</h4>
+                    <button class="copy-button" type="button" data-copy="command-macos" data-copy-status="copy-status" aria-describedby="macos-title" hidden>Copy command</button>
+                  </div>
+                  <pre tabindex="0" aria-label="macOS installation command"><code id="command-macos">curl -fsSL https://kody-w.github.io/rapp-installer/install.sh | bash</code></pre>
+                  <p class="command-caption">Then continue with step 2 on this Mac. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.sh">Inspect the installer <span aria-hidden="true">↗</span></a></p>
+                </article>
+                <article class="command-panel" data-platform="linux" aria-labelledby="linux-title">
+                  <div class="command-head">
+                    <h4 id="linux-title" class="shell-label">Linux / Bash</h4>
+                    <button class="copy-button" type="button" data-copy="command-linux" data-copy-status="copy-status" aria-describedby="linux-title" hidden>Copy command</button>
+                  </div>
+                  <pre tabindex="0" aria-label="Linux installation command"><code id="command-linux">curl -fsSL https://kody-w.github.io/rapp-installer/install.sh | bash</code></pre>
+                  <p class="command-caption">Step 2 needs macOS. On Linux, RAPP Brainstem itself is what you get for now. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.sh">Inspect the installer <span aria-hidden="true">↗</span></a></p>
+                </article>
+                <article class="command-panel" data-platform="windows" aria-labelledby="windows-title">
+                  <div class="command-head">
+                    <h4 id="windows-title" class="shell-label">Windows / PowerShell</h4>
+                    <button class="copy-button" type="button" data-copy="command-windows" data-copy-status="copy-status" aria-describedby="windows-title" hidden>Copy command</button>
+                  </div>
+                  <pre tabindex="0" aria-label="Windows installation command"><code id="command-windows">irm https://raw.githubusercontent.com/kody-w/rapp-installer/main/install.ps1 | iex</code></pre>
+                  <p class="command-caption">Run it in PowerShell. Step 2 needs macOS; on Windows, RAPP Brainstem itself is what you get for now. <a href="https://github.com/kody-w/rapp-installer/blob/main/install.ps1">Inspect the installer <span aria-hidden="true">↗</span></a></p>
+                </article>
+              </div>
+              <p id="copy-status" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <p class="fine-print">Existing core installer · Unchanged URLs · <a href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md#install">Core setup guide <span aria-hidden="true">↗</span></a></p>
+            </div>
+          </li>
+
+          <li class="install-step" id="step-agent">
+            <div class="step-copy">
+              <p class="step-tag">Step 2 · <span class="tag-strong">macOS only</span> · <span class="tag-strong">Experimental <span data-manifest="runtime.version">0.1.0</span></span></p>
+              <h3 id="step-agent-title">Add Brainstem Agent, the always-on runtime.</h3>
+              <p>Run these in Terminal on your Mac, from the folder where you want the clone. The first four lines clone this repository and install the <code>brainstem-agent</code> command in <code>.venv</code>, a virtual environment inside the clone.</p>
+              <p><code>setup</code> downloads and verifies the pinned core, checking every file against its recorded hash, and builds its private environment. <code>doctor --deep</code> proves the sandbox, worker and sign-in are ready.</p>
+              <p>Every command accepts <code>--json</code>: it was built so another AI agent can drive it.</p>
+              <p class="done-when"><strong>Done when</strong> <code>doctor --deep</code> reports that Brainstem Agent is ready. If it lists a problem, see <a href="#troubleshooting">If something fails</a>.</p>
+            </div>
+            <figure class="command-block" aria-labelledby="agent-block-label">
+              <div class="command-head">
+                <p id="agent-block-label" class="shell-label">macOS / Terminal · install and verify</p>
+                <button class="copy-button" type="button" data-copy="command-agent" data-copy-status="copy-status-agent" aria-describedby="agent-block-label" hidden>Copy commands</button>
+              </div>
+              <pre tabindex="0" aria-label="Brainstem Agent install and verify commands"><code id="command-agent">git clone https://github.com/kody-w/brainstem-agent.git
+cd brainstem-agent
+python3.11 -m venv .venv
+.venv/bin/pip install ./runtime
+.venv/bin/brainstem-agent setup
+.venv/bin/brainstem-agent doctor --deep</code></pre>
+              <p id="copy-status-agent" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            </figure>
+          </li>
+        </ol>
+
+        <div class="install-step first-run" id="first-run">
+          <div class="step-copy">
+            <p class="step-tag">Then · first run</p>
+            <h3 id="first-run-title">Put it to work.</h3>
+            <p>Still in the <code>brainstem-agent</code> folder:</p>
+            <ul class="explain-list">
+              <li><code>chat</code> gives it one task, answered through your Copilot sign-in. This one writes <code>notes/hello.txt</code> in the agent's workspace, by default inside <code>~/.brainstem-agent</code>.</li>
+              <li><code>serve --detach</code> starts the always-on daemon. It keeps a warm worker and runs your schedules until you <code>stop</code> it; work pauses while the Mac sleeps.</li>
+              <li><code>status</code> shows the daemon's health, its worker and your schedules. Right after <code>serve --detach</code> the worker may still be starting; a few seconds later it is warm.</li>
+              <li>Optional: <code>service install</code> adds a login LaunchAgent, so the daemon starts when you log in.</li>
+            </ul>
+          </div>
+          <figure class="command-block" aria-labelledby="first-run-label">
+            <div class="command-head">
+              <p id="first-run-label" class="shell-label">macOS / Terminal · first run</p>
+              <button class="copy-button" type="button" data-copy="command-first-run" data-copy-status="copy-status-first-run" aria-describedby="first-run-label" hidden>Copy commands</button>
+            </div>
+            <pre tabindex="0" aria-label="Brainstem Agent first-run commands"><code id="command-first-run">.venv/bin/brainstem-agent chat "Create notes/hello.txt containing hi"
+.venv/bin/brainstem-agent serve --detach
+.venv/bin/brainstem-agent status</code></pre>
+            <p id="copy-status-first-run" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          </figure>
+        </div>
+
+        <div class="install-help">
+          <div class="doctor" id="doctor">
+            <p class="step-tag">What it checks</p>
+            <h3 id="doctor-title">Inside <code>doctor --deep</code>.</h3>
+            <p><code>doctor</code> runs the first four checks. <code>--deep</code> adds a real probe. If a check fails, doctor says which one and why.</p>
+            <ol class="check-list">
+              <li><strong>Core source.</strong> Every tracked file of the pinned core (Grail <span data-manifest="runtime.grail.version">0.6.16</span>) matches its recorded hash.</li>
+              <li><strong>Private environment.</strong> The core worker's own Python environment is installed from a hash lock.</li>
+              <li><strong>Sign-in.</strong> Your RAPP Brainstem's GitHub Copilot sign-in is found. Its value is never shown.</li>
+              <li><strong>Sandbox.</strong> <code>/usr/bin/sandbox-exec</code> works.</li>
+              <li><strong>Deep probe.</strong> A real core worker starts in the sandbox and proves, from inside, that it cannot read your home folder, your sign-in or the agent's state, cannot change the core's files or write outside its own, and can reach no local service except its own broker. Tools answer only to a valid grant, the core's files verify before and after, and the worker's processes are gone once it stops.</li>
+            </ol>
+          </div>
+
+          <div class="troubleshooting" id="troubleshooting">
+            <p class="step-tag">Common failures</p>
+            <h3 id="troubleshooting-title">If something fails.</h3>
+            <dl class="fix-list">
+              <div>
+                <dt>Not signed in</dt>
+                <dd><code>doctor</code> reports a <code>credential</code> problem: no Copilot credential. Finish step 1: run <code>brainstem</code>, open <code>http://localhost:7071</code> and complete the GitHub sign-in with an account that has Copilot access. Then run <code>doctor --deep</code> again.</dd>
+              </div>
+              <div>
+                <dt>Wrong Python version</dt>
+                <dd><code>python3.11</code> is not found, or pip refuses the package because it needs a newer Python. Install Python 3.11 or newer. If <code>.venv</code> was made with an older Python, delete the <code>.venv</code> folder and create it again with Python 3.11 or newer (<code>python3.13</code> works in place of <code>python3.11</code>), then repeat the <code>pip install</code> and <code>setup</code> lines.</dd>
+              </div>
+              <div>
+                <dt>Not macOS</dt>
+                <dd>The agent runtime does not support Linux or Windows yet: it needs the macOS sandbox and will not run without it. On those systems, use RAPP Brainstem from step 1.</dd>
+              </div>
+              <div>
+                <dt>Sandbox unavailable</dt>
+                <dd><code>doctor</code> reports a <code>sandbox</code> problem. The runtime needs <code>/usr/bin/sandbox-exec</code>, built into macOS, and will not run without it. Run the commands directly on the Mac, in Terminal, rather than from inside another sandboxed app or tool, then run <code>doctor --deep</code> again.</dd>
+              </div>
+              <div>
+                <dt>“Stop the daemon first”</dt>
+                <dd><code>doctor --deep</code> needs the agent to itself. Run <code>.venv/bin/brainstem-agent stop</code>, run <code>doctor --deep</code>, then start the daemon again with <code>serve --detach</code>.</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="install-step remove" id="remove">
+          <div class="step-copy">
+            <p class="step-tag">When you are done</p>
+            <h3 id="remove-title">Stop and remove it.</h3>
+            <p>From the <code>brainstem-agent</code> folder, <code>stop</code> ends the daemon and confirms its workers are gone. <code>service uninstall</code> removes the login LaunchAgent if you added one with <code>service install</code>.</p>
+            <p>To remove it completely, delete the <code>brainstem-agent</code> folder you cloned, including its <code>.venv</code>, and the runtime's home, <code>~/.brainstem-agent</code>. The home holds everything the agent saved: the files in its default workspace, state, memory, skills, schedules, conversations and its verified copy of the core. Your RAPP Brainstem in <code>~/.brainstem</code> is not touched.</p>
+          </div>
+          <figure class="command-block" aria-labelledby="remove-label">
+            <div class="command-head">
+              <p id="remove-label" class="shell-label">macOS / Terminal · stop</p>
+              <button class="copy-button" type="button" data-copy="command-remove" data-copy-status="copy-status-remove" aria-describedby="remove-label" hidden>Copy commands</button>
+            </div>
+            <pre tabindex="0" aria-label="Brainstem Agent stop commands"><code id="command-remove">.venv/bin/brainstem-agent stop
+.venv/bin/brainstem-agent service uninstall</code></pre>
+            <p id="copy-status-remove" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          </figure>
+        </div>
+
+        <p class="install-links">
+          <a class="text-link" href="https://github.com/kody-w/brainstem-agent/blob/main/runtime/README.md">Runtime documentation <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/kody-w/brainstem-agent/issues">Report an agent runtime problem <span aria-hidden="true">↗</span></a>
+        </p>
       </div>
     </section>
 
-    <section class="features-section" id="how-it-works" aria-labelledby="features-title">
+    <section class="capabilities-section" id="capabilities" aria-labelledby="capabilities-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">02 / ANATOMY OF AN AGENT</p>
-          <h2 id="features-title">Not another place to chat.<br>A place to make things happen.</h2>
-          <p>A small engine connecting the instructions you write, the tools you add, and the working state on your machine.</p>
+          <p class="eyebrow">02 / WHAT WORKS TODAY</p>
+          <h2 id="capabilities-title">Six things an agent needs.<br>Each labelled honestly.</h2>
+          <p>Every card carries its status in Brainstem Agent <span data-manifest="runtime.version">0.1.0</span> and its main limit. The same statuses are published as <a href="assets/capabilities.json">machine-readable JSON</a>.</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature">
-            <span class="feature-number">01 / INSTRUCTIONS</span>
-            <svg class="feature-glyph" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true">
-              <path d="M36 12h64l24 24v68H36zM100 12v24h24M52 52h54M52 66h40M52 80h48" stroke="currentColor" stroke-width="2"/>
-              <path d="m14 48 10 10-10 10M138 62l10 10-10 10" stroke="currentColor" stroke-width="2"/>
+        <ul class="status-legend" aria-label="What the status labels mean">
+          <li><span class="status-key" data-legend="available">Available (experimental)</span> Works today; interfaces may change.</li>
+          <li><span class="status-key" data-legend="partial">Partial</span> Works, within the limit shown.</li>
+          <li><span class="status-key" data-legend="in-development">In development</span> Being built; not released.</li>
+          <li><span class="status-key" data-legend="not-yet">Not yet</span> Not available.</li>
+        </ul>
+
+        <ul class="cap-grid" role="list">
+          <li class="cap-card" data-capability="deploy">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <rect x="28" y="40" width="104" height="60" rx="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M14 108h132M66 100v8M94 100v8" stroke="currentColor" stroke-width="2"/>
+              <path d="M80 6v38M67 31l13 13 13-13" stroke="currentColor" stroke-width="2"/>
+              <path d="M62 70l11 11 25-25" stroke="currentColor" stroke-width="2.4"/>
+              <circle cx="80" cy="6" r="4" fill="currentColor"/>
+              <path d="M40 52h14M40 88h20M108 88h12" stroke="currentColor" stroke-width="2" stroke-opacity=".45"/>
             </svg>
-            <h3>Make it yours.</h3>
-            <p>Give your agent a way of working. Edit its <code>soul.md</code> instructions to define its role, priorities, and approach.</p>
-            <p class="feature-detail">A plain-text starting point. Your direction.</p>
-          </article>
-          <article class="feature">
-            <span class="feature-number">02 / CAPABILITIES</span>
-            <svg class="feature-glyph" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true">
-              <rect x="59" y="37" width="42" height="42" stroke="currentColor" stroke-width="2"/>
-              <path d="M80 8v29M80 79v29M10 58h49M101 58h49M30 22l29 24M101 70l29 24" stroke="currentColor" stroke-width="2"/>
-              <circle cx="80" cy="8" r="5" fill="currentColor"/><circle cx="80" cy="108" r="5" fill="currentColor"/>
-              <circle cx="10" cy="58" r="5" fill="currentColor"/><circle cx="150" cy="58" r="5" fill="currentColor"/>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">01</span>
+              <h3 class="cap-title">Deploy</h3>
+              <span class="status" data-status="partial">Partial</span>
+            </div>
+            <p class="cap-summary"><code>setup</code> downloads and verifies the pinned core and builds a private environment; <code>doctor --deep</code> proves readiness.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">This Mac only; no cloud or remote deployment yet.</span></p>
+          </li>
+          <li class="cap-card" data-capability="always-on">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <circle cx="78" cy="60" r="42" stroke="currentColor" stroke-width="2" stroke-dasharray="2 6"/>
+              <path d="M10 60h40l8-20 12 40 10-30 7 10h63" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="78" cy="18" r="5" fill="currentColor"/>
+              <path d="M131 14a11 11 0 1 0 11 15 9 9 0 0 1-11-15z" stroke="currentColor" stroke-width="2"/>
             </svg>
-            <h3>Give it tools.</h3>
-            <p>Add capabilities as Python agent files. Brainstem discovers them on each request, so new tools don't need a server restart.</p>
-            <p class="feature-detail">Small files. Real functionality.</p>
-          </article>
-          <article class="feature">
-            <span class="feature-number">03 / LOCAL STATE</span>
-            <svg class="feature-glyph" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true">
-              <rect x="26" y="20" width="108" height="68" rx="3" stroke="currentColor" stroke-width="2"/>
-              <path d="M14 96h132M66 88v8M94 88v8M44 40h30M44 52h52M44 64h40" stroke="currentColor" stroke-width="2"/>
-              <circle cx="111" cy="62" r="8" stroke="currentColor" stroke-width="2"/>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">02</span>
+              <h3 class="cap-title">Always available</h3>
+              <span class="status" data-status="partial">Partial</span>
+            </div>
+            <p class="cap-summary"><code>serve --detach</code> runs an always-on daemon with a warm worker; <code>service install</code> adds a login LaunchAgent.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Work pauses while the Mac sleeps; no remote host yet.</span></p>
+          </li>
+          <li class="cap-card" data-capability="schedule">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <rect x="18" y="20" width="88" height="78" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M18 38h88M38 10v18M86 10v18" stroke="currentColor" stroke-width="2"/>
+              <path d="M32 54h10M50 54h10M68 54h10M32 70h10M50 70h10M32 86h10" stroke="currentColor" stroke-width="2"/>
+              <circle class="cap-art-fill" cx="114" cy="78" r="28" stroke="currentColor" stroke-width="2"/>
+              <path d="M114 60v18l12 9" stroke="currentColor" stroke-width="2.2"/>
             </svg>
-            <h3>Keep your working state local.</h3>
-            <p>Run the engine on your machine with local agent storage. The browser is your interface, not a separate hosted workspace.</p>
-            <p class="feature-detail">Local runtime. Remote model inference.</p>
-          </article>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">03</span>
+              <h3 class="cap-title">Schedule</h3>
+              <span class="status" data-status="available">Available (experimental)</span>
+            </div>
+            <p class="cap-summary">Ask in plain language or use <code>schedules</code>: one-time, interval and cron, time zones and DST, missed-run and overlap rules, pause, resume, edit, run-now and remove, with results in an inbox.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Runs only while the daemon is running.</span></p>
+            <a class="cap-run-link" href="#run-schedule">See the recording <span aria-hidden="true">↓</span></a>
+          </li>
+          <li class="cap-card" data-capability="connect">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <path d="M14 18h60v38H40L26 68V56H14z" stroke="currentColor" stroke-width="2"/>
+              <path d="M28 32h32M28 42h20" stroke="currentColor" stroke-width="2"/>
+              <path d="M86 48h60v38h-12v12l-14-12H86z" stroke="currentColor" stroke-width="2" stroke-dasharray="4 5"/>
+              <path d="M74 37c14 0 4 26 12 26" stroke="currentColor" stroke-width="2" stroke-dasharray="2 5"/>
+              <path d="M108 60l16 14M124 60l-16 14" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">04</span>
+              <h3 class="cap-title">Connect</h3>
+              <span class="status" data-status="not-yet">Not yet</span>
+            </div>
+            <p class="cap-summary">Messaging apps and email are not connected yet; today you use the terminal, and tools connect through MCP.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">No messaging channels.</span></p>
+          </li>
+          <li class="cap-card" data-capability="remember">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <path d="M40 10h64v76" stroke="currentColor" stroke-width="2" stroke-opacity=".45"/>
+              <path d="M28 20h64v84H28z" stroke="currentColor" stroke-width="2"/>
+              <path d="M40 38h40M40 52h30M40 66h36M40 80h22" stroke="currentColor" stroke-width="2"/>
+              <circle class="cap-art-fill" cx="106" cy="70" r="20" stroke="currentColor" stroke-width="2"/>
+              <path d="M120 84l22 22" stroke="currentColor" stroke-width="3"/>
+            </svg>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">05</span>
+              <h3 class="cap-title">Remember</h3>
+              <span class="status" data-status="available">Available (experimental)</span>
+            </div>
+            <p class="cap-summary">Workspace and profile memory with correction and forgetting, search across past conversations, and <code>AGENTS.md</code> context files.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Local to this Mac; retrieval is keyword ranking (BM25), not semantic embeddings.</span></p>
+          </li>
+          <li class="cap-card" data-capability="isolate">
+            <svg class="cap-art" width="160" height="116" viewBox="0 0 160 116" fill="none" aria-hidden="true" focusable="false">
+              <rect x="12" y="8" width="136" height="100" rx="18" stroke="currentColor" stroke-width="2" stroke-dasharray="6 5"/>
+              <rect x="28" y="22" width="104" height="72" rx="10" stroke="currentColor" stroke-width="2"/>
+              <rect x="61" y="52" width="38" height="28" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M69 52v-9a11 11 0 0 1 22 0v9" stroke="currentColor" stroke-width="2"/>
+              <circle cx="80" cy="66" r="3.5" fill="currentColor"/>
+            </svg>
+            <div class="cap-head">
+              <span class="cap-index" aria-hidden="true">06</span>
+              <h3 class="cap-title">Isolate</h3>
+              <span class="status" data-status="available">Available (experimental)</span>
+            </div>
+            <p class="cap-summary">Every core worker, shell command, script and local MCP server runs under the macOS sandbox (Seatbelt) with private per-worker files; tool processes cannot read your home folder or your sign-in and write only inside the workspace; the shell has no network.</p>
+            <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">macOS sandbox only; not a VM or container.</span></p>
+          </li>
+        </ul>
+
+        <div class="more">
+          <h3 class="more-title" id="more-title">Nine more, with the same labels.</h3>
+          <ul class="more-grid" role="list" aria-labelledby="more-title">
+            <li class="more-item" data-capability="skills">
+              <div class="more-head"><h4 class="cap-title">Learns skills</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Saves how it solved a task as a versioned skill (unreviewed until you approve), offers it in later turns, and lets you review, approve, edit, disable and export it.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Skills are data offered to the model, never executed and never granting permissions; review is manual.</span></p>
+            </li>
+            <li class="more-item" data-capability="long-work">
+              <div class="more-head"><h4 class="cap-title">Long tasks</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Continues automatically past the core's three-tool-round limit and streams progress; Ctrl-C cancels and stops the worker.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Bounded per turn (segments, tool calls, time).</span></p>
+              <a class="cap-run-link" href="#run-long-chain">See the recording <span aria-hidden="true">↓</span></a>
+            </li>
+            <li class="more-item" data-capability="delegate">
+              <div class="more-head"><h4 class="cap-title">Helpers</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Runs up to three helper workers in parallel, each a fresh sandboxed core worker with narrower permissions.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">One level of helpers; bounded count.</span></p>
+              <a class="cap-run-link" href="#run-parallel-helpers">See the recording <span aria-hidden="true">↓</span></a>
+            </li>
+            <li class="more-item" data-capability="tools">
+              <div class="more-head"><h4 class="cap-title">Tools and processes</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Files, a sandboxed shell, sandboxed Python scripts that call tools, and background processes (start, poll, log, stop).</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Inside the workspace; the shell has no network.</span></p>
+            </li>
+            <li class="more-item" data-capability="web">
+              <div class="more-head"><h4 class="cap-title">Web</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Fetches pages and searches (Wikipedia by default) with citations; private and cloud-metadata addresses are refused; an owner egress policy and log; web content can never make it remember or forget.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">The search provider is Wikipedia unless configured.</span></p>
+            </li>
+            <li class="more-item" data-capability="mcp">
+              <div class="more-head"><h4 class="cap-title">MCP</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Connects MCP servers (stdio and streamable HTTP) from a JSON config; tools appear as <code>mcp__server__tool</code>; each local server gets its own sandbox profile and permission.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">You add and trust servers yourself.</span></p>
+            </li>
+            <li class="more-item" data-capability="receipts">
+              <div class="more-head"><h4 class="cap-title">Receipts and recovery</h4><span class="status" data-status="partial">Partial</span></div>
+              <p class="cap-summary">Every tool call gets a receipt (succeeded, failed or uncertain); a repeated request with an idempotency key replays without a new model call; interrupted work is recovered or marked uncertain.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Backup and restore, upgrade and rollback, and credential rotation are not there yet.</span></p>
+            </li>
+            <li class="more-item" data-capability="companion">
+              <div class="more-head"><h4 class="cap-title">Terminal session and web companion</h4><span class="status" data-status="in-development">In development</span></div>
+              <p class="cap-summary">An interactive terminal session and an owner-only local web companion are being built on the same engine.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Not released; today you use the commands.</span></p>
+            </li>
+            <li class="more-item" data-capability="browser-media">
+              <div class="more-head"><h4 class="cap-title">Browser, images and voice</h4><span class="status" data-status="not-yet">Not yet</span></div>
+              <p class="cap-summary">No browser automation, image understanding or generation, transcription or speech yet.</p>
+            </li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <section class="example-section" id="example" aria-labelledby="example-title">
-      <div class="wrap example-layout">
-        <div class="example-intro">
-          <p class="eyebrow">03 / FROM INTENT TO ACTION</p>
-          <h2 id="example-title">You set the direction.<br>The tools do the work.</h2>
-          <p>Here's the shape of a tool-backed conversation: a request becomes an agent call, and its result comes back into the conversation.</p>
-          <p class="example-disclaimer"><strong>Illustrative walkthrough</strong><br>Sample data, not a live agent. This example assumes you've added an appropriate notes agent.</p>
-          <a class="text-link" href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md">Explore the agent model <span aria-hidden="true">↗</span></a>
+    <section class="runs-section" id="runs" aria-labelledby="runs-title">
+      <div class="wrap">
+        <div class="section-heading">
+          <p class="eyebrow">03 / RECORDED RUNS</p>
+          <h2 id="runs-title">Real runs, recorded.<br>Not a live demo.</h2>
+          <p>Three runs of the experimental runtime, recorded on 2026-09-23 through real GitHub Copilot inference with the pinned core on macOS (Apple silicon). Prompts and answers are quoted verbatim; <span aria-hidden="true">…</span><span class="sr-only">an ellipsis</span> marks a trim.</p>
         </div>
-        <div class="example-console" aria-label="Illustrative agent workflow">
-          <div class="console-bar"><span class="console-dot" aria-hidden="true"></span><span class="console-title">BRAINSTEM / EXAMPLE SESSION</span><span>SAMPLE</span></div>
-          <ol class="example-steps">
-            <li><span class="step-label">01 — YOU</span><p>Save a note: the next prototype should put accessibility first.</p></li>
-            <li><span class="step-label">02 — TOOL CALL</span><p>Your notes agent receives the request.</p><code>notes_agent → save</code></li>
-            <li><span class="step-label">03 — RESULT</span><p class="sample-output">Note saved: “Put accessibility first in the next prototype.”</p></li>
-          </ol>
+
+        <article class="run" id="run-long-chain" data-run="long-chain" aria-labelledby="run-long-chain-title">
+          <div class="run-copy">
+            <p class="run-label"><span class="run-kind">Recorded run</span> <span>2026-09-23</span> <span>experimental runtime</span></p>
+            <h3 id="run-long-chain-title">One request, four segments, eleven tool calls.</h3>
+            <p class="run-context">The core allows three tool rounds per request. Brainstem Agent continued on its own until the task was done.</p>
+            <dl class="run-meta">
+              <div><dt>State</dt><dd>succeeded</dd></div>
+              <div><dt>Segments</dt><dd>4</dd></div>
+              <div><dt>Tool calls</dt><dd>11</dd></div>
+              <div><dt>Tools</dt><dd>read_file, write_file</dd></div>
+            </dl>
+          </div>
+          <div class="run-console">
+            <div class="console-bar"><span class="console-dot" aria-hidden="true"></span><span class="console-title">Transcript</span><span class="console-tag">Not live</span></div>
+            <div class="run-turns">
+              <div class="run-turn"><p class="step-label">You</p><p class="run-prompt">Create chain/1.txt containing 1. Then repeatedly read the latest file and write the next file containing the value plus one, up to chain/6.txt. Then report the final value.</p></div>
+              <div class="run-turn"><p class="step-label">Tool log, excerpt</p><pre class="run-log">…
+[read_file] chain/5.txt (1 bytes):
+5
+[write_file] Wrote 1 bytes to chain/6.txt.</pre></div>
+              <div class="run-turn"><p class="step-label">Answer, verbatim</p><blockquote class="run-answer">**Final value: 6**
+
+The chain has been created successfully from chain/1.txt through chain/6.txt, with each file containing the value one greater than the previous file.</blockquote></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="run" id="run-parallel-helpers" data-run="parallel-helpers" aria-labelledby="run-parallel-helpers-title">
+          <div class="run-copy">
+            <p class="run-label"><span class="run-kind">Recorded run</span> <span>2026-09-23</span> <span>experimental runtime</span></p>
+            <h3 id="run-parallel-helpers-title">Two helpers, in parallel.</h3>
+            <p class="run-context">Each helper ran on its own fresh, sandboxed core worker, then the answer joined their results.</p>
+            <dl class="run-meta">
+              <div><dt>State</dt><dd>succeeded</dd></div>
+              <div><dt>Segments</dt><dd>1</dd></div>
+              <div><dt>Tool calls</dt><dd>3</dd></div>
+              <div><dt>Tools</dt><dd>delegate_tasks, read_file</dd></div>
+            </dl>
+          </div>
+          <div class="run-console">
+            <div class="console-bar"><span class="console-dot" aria-hidden="true"></span><span class="console-title">Transcript</span><span class="console-tag">Not live</span></div>
+            <div class="run-turns">
+              <div class="run-turn"><p class="step-label">You</p><p class="run-prompt">Delegate two independent sub-tasks to helpers in parallel: helper A writes par/a.txt containing alpha, helper B writes par/b.txt containing beta. Then tell me both file contents.</p></div>
+              <div class="run-turn"><p class="step-label">Tool log, excerpt</p><pre class="run-log">[delegate_tasks] 2 of 2 helpers succeeded (in parallel, …).
+
+Helper 1 (Helper A): succeeded
+Done. I've created the file `par/a.txt` with the content `alpha` (no trailing newline).
+
+Helper 2 (Helper B): succeeded
+Done. I've written the file `par/b.txt` with the content 'beta' (no trailing newline).
+…</pre></div>
+              <div class="run-turn"><p class="step-label">Answer, verbatim</p><blockquote class="run-answer">Done! Here are the file contents:
+
+- **par/a.txt**: `alpha`
+- **par/b.txt**: `beta`
+
+Both files were created in parallel by the helpers as requested.</blockquote></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="run" id="run-schedule" data-run="schedule" aria-labelledby="run-schedule-title">
+          <div class="run-copy">
+            <p class="run-label"><span class="run-kind">Recorded run</span> <span>2026-09-23</span> <span>experimental runtime</span></p>
+            <h3 id="run-schedule-title">A schedule, in plain language.</h3>
+            <p class="run-context">The first call asked for something a schedule may not hold and was refused. The retry created a one-time schedule holding only the shell capability.</p>
+            <dl class="run-meta">
+              <div><dt>State</dt><dd>succeeded</dd></div>
+              <div><dt>Tool calls</dt><dd>2</dd></div>
+              <div><dt>Tools</dt><dd>schedule_create</dd></div>
+            </dl>
+          </div>
+          <div class="run-console">
+            <div class="console-bar"><span class="console-dot" aria-hidden="true"></span><span class="console-title">Transcript</span><span class="console-tag">Not live</span></div>
+            <div class="run-turns">
+              <div class="run-turn"><p class="step-label">You</p><p class="run-prompt">In 1 minute, write the current time into notes/time.txt.</p></div>
+              <div class="run-turn"><p class="step-label">Tool log, excerpt</p><pre class="run-log">[schedule_create] A schedule may only hold capabilities from ['files.read', 'files.write', 'memory.read', 'memory.write', 'shell.run', 'schedule.read', 'schedule.write']; refused: ['run_command'].
+[schedule_create] Created schedule … with capabilities ['shell.run'].</pre></div>
+              <div class="run-turn"><p class="step-label">Answer, verbatim</p><blockquote class="run-answer">Done! I've scheduled a task to write the current time to notes/time.txt in 1 minute (at 2026-09-23T04:40:38).</blockquote></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="limits-section" id="limits" aria-labelledby="limits-title">
+      <div class="wrap">
+        <div class="section-heading">
+          <p class="eyebrow">04 / HONEST LIMITS</p>
+          <h2 id="limits-title">What it needs.<br>What it isn't, yet.</h2>
+          <p>Brainstem Agent is experimental. Read this before you rely on it.</p>
         </div>
+        <div class="limits-grid">
+          <div class="limits-col">
+            <h3>It needs</h3>
+            <ul>
+              <li><strong>macOS only.</strong> Qualified on Apple silicon, using <code>/usr/bin/sandbox-exec</code>, which is built into macOS. On Linux and Windows the core installer works; the agent runtime does not yet.</li>
+              <li><strong>Python 3.11 or newer, Git and internet access.</strong> Verified on Python 3.11 and 3.13.</li>
+              <li><strong>A GitHub Copilot sign-in through your Brainstem.</strong> RAPP Brainstem installed and signed in with a GitHub account that has Copilot access. The agent reuses that sign-in read-only; there is no separate API key.</li>
+            </ul>
+          </div>
+          <div class="limits-col">
+            <h3>Know this</h3>
+            <ul>
+              <li><strong>Experimental, version <span data-manifest="runtime.version">0.1.0</span>.</strong> Interfaces may change.</li>
+              <li><strong>Inference is remote.</strong> Prompts, conversation context and tool results used for inference leave your Mac. Web tools contact the sites you ask about.</li>
+              <li><strong>Work pauses while the Mac sleeps.</strong> Schedules run only while the daemon is running.</li>
+              <li><strong>Not a hosted service.</strong> It runs on this Mac only; there is no cloud or remote deployment yet.</li>
+              <li><strong>Not yet:</strong> messaging channels, cloud deployment, browser automation, images and voice.</li>
+              <li><strong>The core stays unchanged.</strong> Grail is never modified or redistributed; setup downloads the pinned public source and verifies every file.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cell-section" id="how-it-works" aria-labelledby="cell-title">
+      <div class="wrap cell-layout">
+        <div class="cell-copy">
+          <p class="eyebrow">05 / HOW IT WORKS</p>
+          <h2 id="cell-title">An unchanged core.<br>A cell around it.</h2>
+          <p>Brainstem Agent runs the unchanged Brainstem Grail core, the stable core edition, inside private sandboxed workers, and adds everything around it: sandbox, memory, schedules, tools, helpers, web and MCP. Grail is never modified or redistributed. Setup downloads the pinned public source and checks every file's hash before use.</p>
+          <ul class="cell-parts">
+            <li><strong>Mitochondrion</strong> The Grail core: the cell's unchanged power source.</li>
+            <li><strong>Membrane</strong> The macOS sandbox around every core worker and tool process.</li>
+            <li><strong>Nucleus</strong> State and memory, kept on your Mac.</li>
+            <li><strong>Organs</strong> The tools: files, shell, scripts, web and MCP.</li>
+          </ul>
+        </div>
+        <figure class="cell-figure">
+          <svg class="cell-art" width="560" height="380" viewBox="0 0 560 380" aria-hidden="true" focusable="false">
+            <rect width="560" height="380" fill="#070765"/>
+            <g fill="none" stroke="#f4f2e9">
+              <ellipse cx="280" cy="200" rx="252" ry="156" stroke-width="1.6"/>
+              <ellipse cx="280" cy="200" rx="238" ry="142" stroke-width=".8" stroke-dasharray="3 6" stroke-opacity=".7"/>
+              <circle cx="172" cy="202" r="66" stroke-width="1.4"/>
+              <circle cx="172" cy="202" r="52" stroke-width=".8" stroke-dasharray="2 5" stroke-opacity=".6"/>
+              <rect x="322" y="92" width="22" height="22" stroke-width="1.2"/>
+              <rect x="392" y="104" width="15" height="15" stroke-width="1.2"/>
+              <circle cx="452" cy="126" r="6" stroke-width="1.2"/>
+              <circle cx="336" cy="312" r="10" stroke-width="1.2"/>
+              <circle cx="428" cy="318" r="7" stroke-width="1.2"/>
+            </g>
+            <g fill="none" stroke="#dfff83">
+              <rect x="296" y="160" width="196" height="80" rx="40" stroke-width="1.8"/>
+              <path d="M318 200c6-24 12 24 18 0s12 24 18 0 12 24 18 0 12 24 18 0 12 24 18 0 12 24 18 0 12 24 18 0 12 24 18 0" stroke-width="1.2"/>
+              <path d="M238 202h58" stroke-width="1.2" stroke-dasharray="2 4"/>
+              <circle cx="238" cy="202" r="3" fill="#dfff83"/>
+            </g>
+            <g font-family="'SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="11" letter-spacing="1.2" fill="#f4f2e9">
+              <text x="280" y="30" text-anchor="middle">MEMBRANE / MACOS SANDBOX</text>
+              <text x="172" y="198" text-anchor="middle">NUCLEUS</text>
+              <text x="172" y="216" text-anchor="middle" font-size="9" fill="#c9ccff">STATE + MEMORY</text>
+              <text x="394" y="262" text-anchor="middle" fill="#dfff83">MITOCHONDRION</text>
+              <text x="394" y="278" text-anchor="middle" font-size="9" fill="#c9ccff">UNCHANGED GRAIL CORE</text>
+              <text x="394" y="146" text-anchor="middle" font-size="9" fill="#c9ccff">ORGANS / TOOLS</text>
+            </g>
+          </svg>
+          <figcaption>FIG. 02 / A CELL AROUND AN UNCHANGED CORE</figcaption>
+        </figure>
+        <dl class="pin-spec">
+          <div><dt>Core</dt><dd>Brainstem Grail <span data-manifest="runtime.grail.version">0.6.16</span></dd></div>
+          <div><dt>Source</dt><dd><span data-manifest="runtime.grail.repository">kody-w/rapp-installer</span></dd></div>
+          <div><dt>Commit</dt><dd><code data-manifest="runtime.grail.commit">49db80c8c6b6caa7647369beaf477d374a8f293c</code></dd></div>
+          <div><dt>Kernel SHA-256</dt><dd><code data-manifest="runtime.grail.kernel_sha256">bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4</code></dd></div>
+          <div><dt>Inference</dt><dd>Through your RAPP Brainstem's GitHub Copilot sign-in, reused read-only. Model choice: that connection only, by design.</dd></div>
+        </dl>
       </div>
     </section>
 
     <section class="faq-section" id="questions" aria-labelledby="faq-title">
       <div class="wrap faq-layout">
         <div class="section-heading">
-          <p class="eyebrow">04 / BEFORE YOU BEGIN</p>
+          <p class="eyebrow">06 / QUESTIONS</p>
           <h2 id="faq-title">A little clarity<br>goes a long way.</h2>
         </div>
         <div class="faq-list">
           <details open>
-            <summary>What is a Brainstem?</summary>
-            <p>RAPP Brainstem is a local-first AI agent engine. It connects instructions, Python tools, and model inference through a local server and a browser-based chat interface. You define what the agent should do and which capabilities it has.</p>
+            <summary>How are RAPP Brainstem and Brainstem Agent different?</summary>
+            <p>RAPP Brainstem is the product and its core engine, which step 1 installs, with a local server and a browser chat. Brainstem Agent is the experimental always-on runtime in this repository, run with the <code>brainstem-agent</code> command. It runs the Brainstem Grail core unchanged inside the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, tools, web and MCP.</p>
+          </details>
+          <details>
+            <summary>Why install the core first if setup downloads it?</summary>
+            <p>Brainstem Agent runs its own pinned, verified copy of the core, but it signs in through your installed RAPP Brainstem: it reuses that GitHub Copilot sign-in, read-only. That is why there is no separate API key.</p>
           </details>
           <details>
             <summary>What account do I need?</summary>
-            <p>A GitHub account with Copilot access. Setup includes a sign-in flow. A GitHub account alone does not guarantee access, and provider plans and usage limits apply. Core chat does not require a separate provider API key.</p>
+            <p>A GitHub account with Copilot access, signed in through RAPP Brainstem. Model choice is that GitHub Copilot connection only, by design.</p>
           </details>
           <details>
-            <summary>Does everything stay on my machine?</summary>
-            <p>No. The runtime and agent storage are local, but model inference uses a remote service. Conversation content and tool results used for inference can leave your machine. Tools you add may also contact external services. Review them before use.</p>
+            <summary>What leaves my Mac?</summary>
+            <p>Prompts, conversation context and tool results used for inference go to the remote model through your Copilot sign-in, including file contents a tool has read. Web tools contact the sites you ask about. The agent's state, memory and schedules are stored on the Mac, by default in <code>~/.brainstem-agent</code>.</p>
           </details>
           <details>
-            <summary>Can I change how it works?</summary>
-            <p>Yes. Edit the <code>soul.md</code> instructions and add Python agents following the documented agent interface. Agent files are discovered on each request. Only add code you trust: these tools run with your local user's permissions.</p>
+            <summary>Does it work on Linux or Windows?</summary>
+            <p>The RAPP Brainstem core installer supports them. The agent runtime does not yet: it is macOS only, qualified on Apple silicon, because it depends on the macOS sandbox.</p>
           </details>
           <details>
-            <summary>How do I update it?</summary>
-            <p>Rerun the existing installer for your platform. These commands follow the upstream production <code>main</code> branch; they are not frozen downloads. Review upstream changes and back up your customizations before updating.</p>
+            <summary>What happens while my Mac sleeps?</summary>
+            <p>Work pauses. Schedules run only while the daemon is running; their missed-run and overlap rules decide what happens to runs that came due in the meantime. It is not a hosted service, and there is no remote host yet.</p>
+          </details>
+          <details>
+            <summary>Can another AI agent drive it?</summary>
+            <p>Yes. Every command accepts <code>--json</code>; it was built so another AI agent can drive it from a terminal. The capability statuses on this page are also published as <a href="assets/capabilities.json">JSON</a>.</p>
           </details>
           <details>
             <summary>Where can I get help?</summary>
-            <p>Start with the <a href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md#install">setup documentation</a>. For runtime problems, search or open an issue in the <a href="https://github.com/kody-w/rapp-installer/issues">upstream issue tracker</a>. This is a community project, not a Microsoft support channel.</p>
+            <p>Read the <a href="https://github.com/kody-w/brainstem-agent/blob/main/runtime/README.md">runtime documentation</a> and report agent runtime problems in the <a href="https://github.com/kody-w/brainstem-agent/issues">Brainstem Agent issues</a>. For the core installer and sign-in, use the <a href="https://github.com/kody-w/rapp-installer/blob/main/rapp_brainstem/README.md#install">core setup guide</a> and the <a href="https://github.com/kody-w/rapp-installer/issues">core issues</a>. To stop or remove the agent runtime, see <a href="#remove">Stop and remove it</a>.</p>
           </details>
         </div>
       </div>
     </section>
 
-    <section class="closing-section" aria-labelledby="closing-title">
+    <section class="closing-section" id="closing" aria-labelledby="closing-title">
       <div class="wrap closing-layout">
         <div><p class="eyebrow">YOUR MACHINE. YOUR DIRECTION.</p><h2 id="closing-title">Every great idea<br>needs a way to act.</h2></div>
-        <div><a class="button button-paper" href="#install">Give me my Brainstem <span aria-hidden="true">↗</span></a><p>Start with the core. Make it your own.</p></div>
+        <div><a class="button button-paper" href="#install">Give me my Brainstem <span aria-hidden="true">↗</span></a><p>Start with the core. Add the agent runtime on your Mac.</p></div>
       </div>
     </section>
   </main>
@@ -243,11 +674,13 @@
       <a class="footer-brand" href="#top">RAPP BRAINSTEM</a>
       <div class="footer-links">
         <a href="#questions">Questions</a>
-        <a href="https://github.com/kody-w/rapp-installer">Runtime source <span aria-hidden="true">↗</span></a>
-        <a href="https://github.com/kody-w/brainstem-agent">Site source <span aria-hidden="true">↗</span></a>
-        <a href="https://github.com/kody-w/rapp-installer/issues">Get help <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/kody-w/brainstem-agent">Source <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/kody-w/brainstem-agent/blob/main/runtime/README.md">Runtime docs <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/kody-w/brainstem-agent/issues">Agent issues <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/kody-w/rapp-installer">Core <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/kody-w/rapp-installer/issues">Core issues <span aria-hidden="true">↗</span></a>
       </div>
-      <p class="footer-note">A local-first engine for what comes next.</p>
+      <p class="footer-note">RAPP Brainstem · Brainstem Agent <span data-manifest="runtime.version">0.1.0</span> is an experimental runtime for macOS, not a hosted service.</p>
     </div>
   </footer>
 </body>

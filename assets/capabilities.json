@@ -1,0 +1,203 @@
+{
+  "schema": "rapp-brainstem/site-capabilities-v1",
+  "updated": "2026-09-23",
+  "runtime": {
+    "name": "Brainstem Agent",
+    "version": "0.1.0",
+    "platform": "macOS only (qualified on Apple silicon); needs /usr/bin/sandbox-exec",
+    "grail": {
+      "repository": "kody-w/rapp-installer",
+      "commit": "49db80c8c6b6caa7647369beaf477d374a8f293c",
+      "version": "0.6.16",
+      "kernel_sha256": "bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4"
+    }
+  },
+  "status_labels": {
+    "available": "Available (experimental)",
+    "partial": "Partial",
+    "in-development": "In development",
+    "not-yet": "Not yet"
+  },
+  "capabilities": [
+    {
+      "id": "deploy",
+      "title": "Deploy",
+      "group": "primary",
+      "status": "partial",
+      "summary": "setup downloads and verifies the pinned core and builds a private environment; doctor --deep proves readiness.",
+      "limits": ["This Mac only; no cloud or remote deployment yet."],
+      "evidence": [
+        { "kind": "docs", "ref": "runtime/README.md" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_grail.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_cli.py" }
+      ]
+    },
+    {
+      "id": "always-on",
+      "title": "Always available",
+      "group": "primary",
+      "status": "partial",
+      "summary": "serve --detach runs an always-on daemon with a warm worker; service install adds a login LaunchAgent.",
+      "limits": ["Work pauses while the Mac sleeps; no remote host yet."],
+      "evidence": [
+        { "kind": "docs", "ref": "runtime/README.md" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_daemon.py" }
+      ]
+    },
+    {
+      "id": "schedule",
+      "title": "Schedule",
+      "group": "primary",
+      "status": "available",
+      "summary": "Ask in plain language or use schedules: one-time, interval and cron, time zones and DST, missed-run and overlap rules, pause, resume, edit, run-now and remove, with results in an inbox.",
+      "limits": ["Runs only while the daemon is running."],
+      "evidence": [
+        { "kind": "recorded-run", "ref": "schedule" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_schedules.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_clock_oracle.py" }
+      ]
+    },
+    {
+      "id": "connect",
+      "title": "Connect",
+      "group": "primary",
+      "status": "not-yet",
+      "summary": "Messaging apps and email are not connected yet; today you use the terminal, and tools connect through MCP.",
+      "limits": ["No messaging channels."],
+      "evidence": [
+        { "kind": "docs", "ref": "runtime/README.md" }
+      ]
+    },
+    {
+      "id": "remember",
+      "title": "Remember",
+      "group": "primary",
+      "status": "available",
+      "summary": "Workspace and profile memory with correction and forgetting, search across past conversations, and AGENTS.md context files.",
+      "limits": ["Local to this Mac; retrieval is keyword ranking (BM25), not semantic embeddings."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_memory.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_retrieval.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_learning.py" }
+      ]
+    },
+    {
+      "id": "isolate",
+      "title": "Isolate",
+      "group": "primary",
+      "status": "available",
+      "summary": "Every core worker, shell command, script and local MCP server runs under the macOS sandbox (Seatbelt) with private per-worker files; tool processes cannot read your home folder or your sign-in and write only inside the workspace; the shell has no network.",
+      "limits": ["macOS sandbox only; not a VM or container."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_sandbox.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_shell.py" },
+        { "kind": "docs", "ref": "runtime/README.md" }
+      ]
+    },
+    {
+      "id": "skills",
+      "title": "Learns skills",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Saves how it solved a task as a versioned skill (unreviewed until you approve), offers it in later turns, and lets you review, approve, edit, disable and export it.",
+      "limits": ["Skills are data offered to the model, never executed and never granting permissions; review is manual."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_skills.py" }
+      ]
+    },
+    {
+      "id": "long-work",
+      "title": "Long tasks",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Continues automatically past the core's three-tool-round limit and streams progress; Ctrl-C cancels and stops the worker.",
+      "limits": ["Bounded per turn (segments, tool calls, time)."],
+      "evidence": [
+        { "kind": "recorded-run", "ref": "long-chain" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_longturn.py" }
+      ]
+    },
+    {
+      "id": "delegate",
+      "title": "Helpers",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Runs up to three helper workers in parallel, each a fresh sandboxed core worker with narrower permissions.",
+      "limits": ["One level of helpers; bounded count."],
+      "evidence": [
+        { "kind": "recorded-run", "ref": "parallel-helpers" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_delegation.py" }
+      ]
+    },
+    {
+      "id": "tools",
+      "title": "Tools and processes",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Files, a sandboxed shell, sandboxed Python scripts that call tools, and background processes (start, poll, log, stop).",
+      "limits": ["Inside the workspace; the shell has no network."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_files.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_shell.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_programmatic.py" }
+      ]
+    },
+    {
+      "id": "web",
+      "title": "Web",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Fetches pages and searches (Wikipedia by default) with citations; private and cloud-metadata addresses are refused; an owner egress policy and log; web content can never make it remember or forget.",
+      "limits": ["The search provider is Wikipedia unless configured."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_reach.py" }
+      ]
+    },
+    {
+      "id": "mcp",
+      "title": "MCP",
+      "group": "secondary",
+      "status": "available",
+      "summary": "Connects MCP servers (stdio and streamable HTTP) from a JSON config; tools appear as mcp__server__tool; each local server gets its own sandbox profile and permission.",
+      "limits": ["You add and trust servers yourself."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_reach.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_reach_hardening.py" }
+      ]
+    },
+    {
+      "id": "receipts",
+      "title": "Receipts and recovery",
+      "group": "secondary",
+      "status": "partial",
+      "summary": "Every tool call gets a receipt (succeeded, failed or uncertain); a repeated request with an idempotency key replays without a new model call; interrupted work is recovered or marked uncertain.",
+      "limits": ["Backup and restore, upgrade and rollback, and credential rotation are not there yet."],
+      "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_cell_durability.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_state_v2.py" }
+      ]
+    },
+    {
+      "id": "companion",
+      "title": "Terminal session and web companion",
+      "group": "secondary",
+      "status": "in-development",
+      "summary": "An interactive terminal session and an owner-only local web companion are being built on the same engine.",
+      "limits": ["Not released; today you use the commands."],
+      "evidence": [
+        { "kind": "docs", "ref": "runtime/README.md" }
+      ]
+    },
+    {
+      "id": "browser-media",
+      "title": "Browser, images and voice",
+      "group": "secondary",
+      "status": "not-yet",
+      "summary": "No browser automation, image understanding or generation, transcription or speech yet.",
+      "limits": [],
+      "evidence": [
+        { "kind": "docs", "ref": "runtime/README.md" }
+      ]
+    }
+  ]
+}

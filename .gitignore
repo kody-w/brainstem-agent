@@ -6,3 +6,9 @@ playwright-report/
 _site/
 tests/.server-fixture-*/
 .DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.ba-owner-home-canary-*
+.cache/

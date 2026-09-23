@@ -1,0 +1,95 @@
+name: Runtime tests
+
+# The agent runtime is macOS-only (it isolates work with the Seatbelt sandbox), so it is
+# tested on macOS with both supported interpreters. There is deliberately no Linux job:
+# Linux is not supported yet, and the only platform-neutral code (the offline fixture
+# harness) already runs in these jobs. The unit tier gets the pinned core source from
+# GitHub as its seed (every file is checked against the shipped inventory). The real-core
+# tier (starts the unchanged core) and the live tier (spends Copilot requests) are opt-in,
+# so they skip here with their reasons (runtime/README.md).
+
+on:
+  pull_request:
+    paths:
+      - 'runtime/**'
+      - 'contracts/**'
+      - '.github/workflows/runtime.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'contracts/**'
+      - '.github/workflows/runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS, Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Fetch the pinned core source as a test seed (the tests verify every file)
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          commit=$(PYTHONPATH=runtime python -c "from brainstem_agent import grail; print(grail.PINNED_COMMIT)")
+          if curl -fsSL --retry 3 "https://codeload.github.com/kody-w/rapp-installer/tar.gz/$commit" \
+              | tar -xz -C "$RUNNER_TEMP" "rapp-installer-$commit/rapp_brainstem"; then
+            echo "BRAINSTEM_AGENT_GRAIL_SEED=$RUNNER_TEMP/rapp-installer-$commit/rapp_brainstem" >> "$GITHUB_ENV"
+          else
+            echo "::warning::The pinned core source could not be fetched; seed-based tests will skip."
+          fi
+      - name: Unit tests (real-core and live tiers skip without their gates)
+        timeout-minutes: 30
+        env:
+          PYTHONPATH: runtime
+        run: python -m unittest discover -s runtime/tests -v
+      - name: Offline fixture harness
+        env:
+          PYTHONPATH: runtime
+        run: python -m brainstem_agent fixture
+      - name: Install smoke test (fresh venv, console script, doctor JSON)
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet ./runtime
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/brainstem-agent" --help
+          export BRAINSTEM_AGENT_HOME="$RUNNER_TEMP/agent-home"
+          status=0
+          "$RUNNER_TEMP/venv/bin/brainstem-agent" doctor --json > doctor.json || status=$?
+          "$RUNNER_TEMP/venv/bin/python" - "$status" doctor.json <<'EOF'
+          import json, sys
+          status, report = int(sys.argv[1]), json.load(open(sys.argv[2]))
+          assert report["product"] == "Brainstem Agent", report
+          checks = {"grail_source", "worker_interpreter", "credential", "sandbox"}
+          assert set(report["checks"]) == checks, report["checks"]
+          assert isinstance(report["ready"], bool) and status == (0 if report["ready"] else 1)
+          print("doctor ready:", report["ready"])
+          for name in sorted(checks):
+              print(f"  {name}: ok={report['checks'][name]['ok']}")
+          EOF

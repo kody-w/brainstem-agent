@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brainstem-agent"
+version = "0.1.0"
+description = "Brainstem Agent: a cell runtime around an unchanged Brainstem Grail"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/kody-w/brainstem-agent"
+Documentation = "https://github.com/kody-w/brainstem-agent/blob/main/runtime/README.md"
+Issues = "https://github.com/kody-w/brainstem-agent/issues"
+
+[project.scripts]
+brainstem-agent = "brainstem_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["brainstem_agent*"]
+
+[tool.setuptools.package-data]
+brainstem_agent = ["bridge/*.py", "data/*"]

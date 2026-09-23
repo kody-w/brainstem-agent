@@ -9,6 +9,7 @@ export const MIME_TYPES = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.mjs': 'application/javascript; charset=utf-8',
+  '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',

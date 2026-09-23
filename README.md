@@ -1,51 +1,255 @@
 # RAPP Brainstem
 
-The public landing site for **RAPP Brainstem**, a local-first AI agent engine.
+**RAPP Brainstem** is a local-first AI agent engine: you install the Brainstem core on your
+computer and sign in with your GitHub account's Copilot access. This repository holds the
+public site and **Brainstem Agent**, the always-on agent runtime built around that core.
 
-**Site:** https://kody-w.github.io/brainstem-agent/
+- **Site:** https://kody-w.github.io/brainstem-agent/
+- **Runtime documentation:** [`runtime/README.md`](runtime/README.md)
+- **Core installer and core documentation:** https://github.com/kody-w/rapp-installer
 
-**Runtime and installation documentation:** https://github.com/kody-w/rapp-installer
+## What Brainstem Agent is
 
-This repository contains only the static website. It does not contain, modify, or redistribute the Brainstem runtime or installers. The installation controls link to existing upstream production scripts.
+Brainstem Agent runs the **unchanged Brainstem Grail core** (the stable core edition) inside
+private, sandboxed workers, and adds everything around it: the sandbox, memory, schedules,
+tools, helpers, web and MCP. The core is pinned to
+[`kody-w/rapp-installer`](https://github.com/kody-w/rapp-installer) commit
+`49db80c8c6b6caa7647369beaf477d374a8f293c` (version 0.6.16, kernel `brainstem.py` SHA-256
+`bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4`). It is never modified
+or redistributed: `setup` downloads that public source and checks every file against the
+hash inventory in `runtime/brainstem_agent/data/` before each use.
 
-## Develop
+One way to picture it: the core is the cell's mitochondrion, its unchanged power source;
+Brainstem Agent is the cell around it (membrane = sandbox, nucleus = state and memory,
+organs = tools).
 
-The website is plain HTML, CSS, and JavaScript. No production build or backend is needed.
+## Status
+
+Experimental, version 0.1.0; interfaces may change. **macOS only**, qualified on Apple
+silicon. It is not a hosted service. The Brainstem core installer supports Linux and
+Windows; the agent runtime does not yet.
+
+## Requirements
+
+- macOS with `/usr/bin/sandbox-exec` (built into macOS).
+- Python 3.11 or newer (verified on 3.11 and 3.13), Git and internet access.
+- RAPP Brainstem installed and signed in with a GitHub account that has Copilot access.
+  Brainstem Agent uses your Brainstem's GitHub Copilot connection only (by design); it needs
+  no separate API key.
+
+## Install
+
+**Step 1, the core** (the existing installer; then run `brainstem`, open
+http://localhost:7071 and complete the GitHub sign-in). On macOS or Linux:
+
+```sh
+curl -fsSL https://kody-w.github.io/rapp-installer/install.sh | bash
+```
+
+On Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/kody-w/rapp-installer/main/install.ps1 | iex
+```
+
+**Step 2, the agent** (macOS):
+
+```sh
+git clone https://github.com/kody-w/brainstem-agent.git
+cd brainstem-agent
+python3.11 -m venv .venv
+.venv/bin/pip install ./runtime
+.venv/bin/brainstem-agent setup
+.venv/bin/brainstem-agent doctor --deep
+```
+
+`setup` downloads and verifies the pinned core and builds its private environment; `doctor --deep`
+proves the sandbox, worker and sign-in are ready.
+
+**First run:**
+
+```sh
+.venv/bin/brainstem-agent chat "Create notes/hello.txt containing hi"
+.venv/bin/brainstem-agent serve --detach
+.venv/bin/brainstem-agent status
+```
+
+`serve --detach` starts the always-on daemon (it keeps a warm worker and runs schedules). Files
+the agent creates land in its workspace, by default
+`~/.brainstem-agent/workspaces/default/` (choose another with `--workspace DIR`). Stop the
+daemon with `.venv/bin/brainstem-agent stop`. Every command accepts `--json`, so another AI
+agent can drive it. Commands, options and internals are documented in
+[`runtime/README.md`](runtime/README.md).
+
+## Capabilities
+
+Status labels: **Available (experimental)**, **Partial**, **In development**, **Not yet**.
+
+| Capability | Status | What it does | Limit |
+| --- | --- | --- | --- |
+| Deploy | Partial | `setup` downloads and verifies the pinned core and builds a private environment; `doctor --deep` proves readiness | This Mac only; no cloud or remote deployment yet |
+| Always available | Partial | `serve --detach` runs an always-on daemon with a warm worker; `service install` adds a login LaunchAgent | Work pauses while the Mac sleeps; no remote host yet |
+| Schedule | Available (experimental) | Ask in plain language or use `schedules`: one-time, interval and cron, time zones and DST, missed-run and overlap rules, pause/resume/edit/run-now/remove, results in an inbox | Runs only while the daemon is running |
+| Connect | Not yet | Messaging apps (Telegram, Discord, Slack, email) are not connected yet; today you use the terminal, and tools connect through MCP | No messaging channels |
+| Remember | Available (experimental) | Workspace and profile memory with correction and forgetting, search across past conversations, AGENTS.md context files | Local to this Mac; retrieval is keyword ranking (BM25), not semantic embeddings |
+| Isolate | Available (experimental) | Every core worker, shell command, script and local MCP server runs under the macOS sandbox (Seatbelt) with private per-worker files; tool processes cannot read your home folder or your sign-in and write only inside the workspace; the shell has no network | macOS sandbox only; not a VM or container |
+| Learns skills | Available (experimental) | Saves how it solved a task as a versioned skill (unreviewed until you approve), offers it in later turns, lets you review, approve, edit, disable, export | Skills are data offered to the model, never executed and never granting permissions; review is manual |
+| Long tasks | Available (experimental) | Continues automatically past the core's three-tool-round limit, streams progress, Ctrl-C cancels and stops the worker | Bounded per turn (segments, tool calls, time) |
+| Helpers | Available (experimental) | Runs up to three helper workers in parallel, each a fresh sandboxed core worker with narrower permissions | One level of helpers; bounded count |
+| Tools and processes | Available (experimental) | Files, sandboxed shell, sandboxed Python scripts that call tools, background processes (start, poll, log, stop) | Inside the workspace; shell has no network |
+| Web | Available (experimental) | Fetches pages and searches (Wikipedia by default) with citations; private and cloud-metadata addresses are refused; owner egress policy and log; web content can never make it remember or forget | Search provider is Wikipedia unless configured |
+| MCP | Available (experimental) | Connects MCP servers (stdio and streamable HTTP) from a JSON config; tools appear as `mcp__server__tool`; each local server gets its own sandbox profile and permission | You add and trust servers yourself |
+| Receipts and recovery | Partial | Every tool call gets a receipt (succeeded, failed or uncertain); repeated requests with an idempotency key replay without a new model call; interrupted work is recovered or marked uncertain | Backup/restore, upgrade/rollback and credential rotation not yet |
+| Terminal session and web companion | In development | An interactive terminal session and an owner-only local web companion are being built on the same engine | Not released; today use the commands |
+| Browser, images and voice | Not yet | No browser automation, image understanding or generation, transcription or speech yet | - |
+
+## Privacy: what leaves your Mac
+
+- **Inference** goes through the GitHub Copilot sign-in of your installed RAPP Brainstem,
+  which Brainstem Agent reuses read-only. Prompts, conversation context and tool results
+  used for inference leave the machine.
+- **Web tools** contact the sites you ask about, and the search provider (Wikipedia unless
+  you configure another). MCP servers you configure receive the calls you allow them.
+- **Setup** downloads the pinned core from GitHub and its Python packages (hash-locked) from
+  PyPI.
+- Brainstem Agent's own state (conversations, memory, skills, schedules, receipts and logs)
+  stays in `~/.brainstem-agent` on your Mac. The sign-in is handed only to the core worker
+  and is never printed, logged or saved in that state.
+
+## Security model (short version)
+
+- **Unchanged core, verified.** Every tracked core file is hash-checked before a worker
+  starts and after it stops; a mismatch discards the worker.
+- **Sandboxed workers.** Each core worker runs from its own private copy under the macOS
+  sandbox, with private home and temporary folders; it cannot read your home folder or the
+  agent's state, and reaches tools only through the agent's local broker.
+- **Sandboxed tools.** File tools stay inside the workspace (no absolute paths, `..` or
+  symlink escapes). Shell commands, scripts, background processes and local MCP servers run
+  under their own sandbox profiles: tool processes cannot read your home folder or your
+  sign-in and write only inside the workspace (a local MCP server only in its own folder and
+  the paths you allow it); the shell has no network.
+- **Least authority per turn.** Each turn gets a short-lived grant with explicit capabilities,
+  bound to one worker and revoked when the turn ends; helpers get at most their parent's
+  permissions. Learned skills are data and never grant anything.
+- **Outside content is untrusted.** Web pages, search results and MCP results are marked as
+  data; after reading them, a turn can remember or forget only when your own words ask it to.
+  Web requests to private, loopback and cloud-metadata addresses are refused, and every web
+  and MCP HTTP request is logged.
+
+This is a single-owner tool on one Mac. The macOS sandbox is not a virtual machine or
+container. Details and known limits: [`runtime/README.md`](runtime/README.md) and
+[`contracts/cell.md`](contracts/cell.md).
+
+## Not supported yet
+
+Messaging channels (Telegram, Discord, Slack, email); cloud, hosted or remote deployment;
+the agent runtime on Linux or Windows; browser automation, images and voice; backup and
+restore, upgrade and rollback, credential rotation; the interactive terminal session and web
+companion (in development). Work pauses while the Mac sleeps. Other model providers are not
+supported by design.
+
+## Development
+
+### Site
+
+The site is plain HTML, CSS and JavaScript with no build step. Use Node.js 22 or newer:
 
 ```sh
 npm ci
 npx playwright install chromium
 npm test
+npm run serve
 ```
 
-Use Node.js 22 or newer. `npm run serve` starts a preview at `http://127.0.0.1:4173/brainstem-agent/`. The test server uses the same project prefix to match GitHub Pages; set `PORT` to use a different port.
+`npm test` runs the server tests, then the Playwright browser suite; `npm run serve` starts a
+preview at http://127.0.0.1:4173/brainstem-agent/ (set `PORT` to change it). Local tests can reuse an installed Chrome or Edge (or `PLAYWRIGHT_EXECUTABLE_PATH`); CI
+always uses bundled Chromium. See `playwright.config.js`.
 
-Local tests can reuse installed Chrome or Edge; CI always uses bundled Chromium. Set `PLAYWRIGHT_EXECUTABLE_PATH` to explicitly choose a local browser. See `playwright.config.js` for details.
+### Runtime
 
-Production assets are local. There are no analytics, account forms, remote fonts, automatic installer execution, or requests to a visitor's local Brainstem. The walkthrough is explicitly sample data, not a running agent.
+From the repository root, with Python 3.11 or newer on macOS, this runs the unit tier:
 
-## Publish
+```sh
+PYTHONPATH=runtime python3.11 -m unittest discover -s runtime/tests -q
+```
 
-GitHub Pages uses the Actions workflow in `.github/workflows/pages.yml`. Enable **Settings → Pages → Source → GitHub Actions**. Pushes to `main` run the checks and publish only `index.html` and `assets/`. Manual workflow dispatch is also supported.
+The unit tier needs no network, credential or core download. Tests that copy the pinned
+core source skip unless a verified seed is available: set `BRAINSTEM_AGENT_GRAIL_SEED` to a
+verified `rapp_brainstem` directory, or run `brainstem-agent setup` first (the cache it
+creates in `~/.brainstem-agent` is found automatically). Two further tiers are opt-in. The
+real-core tier starts the unchanged core process without inference:
 
-Verify the live project URL after deployment; a successful push alone does not mean the site is live.
+```sh
+BRAINSTEM_AGENT_REAL_CORE=1 PYTHONPATH=runtime:runtime/tests python3.11 -m unittest \
+  test_real_core test_real_lifeline test_real_daemon test_real_learning test_real_longturn test_real_reach
+```
+
+The live tier spends real Copilot requests through your Brainstem's sign-in:
+
+```sh
+BRAINSTEM_AGENT_LIVE=1 PYTHONPATH=runtime:runtime/tests python3.11 -m unittest test_live
+```
+
+`runtime/tests/run_acceptance.py` runs the tiers and writes sanitized evidence; see
+[`runtime/README.md`](runtime/README.md#tests-and-evidence) for every live suite and the
+evidence runner. CI (`.github/workflows/runtime.yml`) runs the unit tier on macOS with Python
+3.11 and 3.13 (seeded with the pinned core source from GitHub), the offline fixture harness,
+and an install smoke test of `./runtime` in a fresh virtual environment.
+
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `index.html`, `assets/` | The public site (the only files GitHub Pages publishes) |
+| `tests/`, `playwright.config.js`, `package.json` | Site tests and the local preview server |
+| `runtime/` | The Brainstem Agent runtime: Python package `brainstem-agent`, its tests and docs |
+| `contracts/` | Technical contracts: `cell.md` (the runtime) and `m0.md` (the offline harness) |
+| `.github/workflows/` | `pages.yml` (site tests and deploy) and `runtime.yml` (runtime tests) |
+
+## Publishing the site
+
+GitHub Pages uses the Actions workflow `.github/workflows/pages.yml` (**Settings → Pages →
+Source → GitHub Actions**). Each push to `main` runs the site tests, stages only `index.html`
+and `assets/` (symbolic links are refused) and deploys them; manual dispatch also works.
+Verify the live project URL after a deployment: a successful push alone does not mean the
+site is live.
 
 ## Content maintenance
 
-Before changing installation or feature copy:
+Before changing installation, capability or feature copy:
 
-1. Verify the upstream README, actual installer scripts, and runtime version file. Do not equate GitHub's latest ecosystem release with the Brainstem runtime version.
-2. Check that the referenced scripts respond successfully and still match upstream's intended production path. Do not execute installers as part of website tests.
-3. Keep account, platform, and remote-inference requirements visible. "Local-first" does not mean inference is offline or that no data leaves the device.
-4. Check documentation destinations. Do not assume upstream files are published at equivalent Pages-relative paths.
-5. Run the browser suite and inspect desktop/mobile layouts, clipboard failure behavior, no-JavaScript fallback, and keyboard navigation.
+1. Keep the site's capability statuses (its manifest in `assets/capabilities.json`), this
+   README's table and the runtime's documented behaviour in agreement. Claim nothing above
+   its status, and change a status only with evidence (tests or a recorded run).
+2. Verify agent install commands verbatim in a fresh virtual environment from a clean
+   checkout. For the core installer, check the upstream README, the actual installer scripts
+   and the runtime version file, and check that the referenced scripts respond and still
+   match upstream's production path. Never execute installers in site tests.
+3. Keep account, platform and remote-inference requirements visible: macOS only for the
+   agent, a GitHub Copilot sign-in through your Brainstem, and prompts that leave the
+   machine. "Local-first" does not mean inference is offline.
+4. Quote recorded runs verbatim (trimming with an ellipsis is fine), label them as recorded
+   runs of the experimental runtime with their date, and never present them as live.
+5. Check documentation destinations; do not assume upstream files are published at
+   equivalent Pages-relative paths.
+6. Run the browser suite and inspect desktop and mobile layouts, clipboard failure
+   behaviour, the no-JavaScript fallback and keyboard navigation.
 
-The default installers track upstream `main`, not an immutable release. This site intentionally has no runtime-version badge.
+The core installers track upstream `main`, not an immutable release; the agent runtime pins
+its own core commit (above).
 
-## Visual assets
+The site's illustrations, favicon and social card are original to this project; keep the
+site free of other projects' artwork, logos, fonts and copy.
 
-The neural illustration, diagrams, favicon, and social card were created for this site. The design uses broad editorial inspiration, not Hermes artwork, logos, proprietary fonts, or page copy. Refer to any asset-specific attribution files for third-party assets if added later.
+## License
+
+No license has been added to this repository yet.
 
 ## Support
 
-For runtime issues, use [the upstream issue tracker](https://github.com/kody-w/rapp-installer/issues). For website defects, use this repository's issues. Neither is a Microsoft support channel.
+- Brainstem Agent (the runtime) and the site: [this repository's
+  issues](https://github.com/kody-w/brainstem-agent/issues).
+- The Brainstem core and its installers: [kody-w/rapp-installer
+  issues](https://github.com/kody-w/rapp-installer/issues).
+
+Neither is a Microsoft support channel.
