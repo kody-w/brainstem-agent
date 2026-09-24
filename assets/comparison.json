@@ -1,0 +1,133 @@
+{
+  "schema": "rapp-brainstem/site-comparison-v1",
+  "measured": {
+    "date": "2026-09-24",
+    "machine": "one Mac with Apple silicon"
+  },
+  "same": "Brainstem Agent does not replace the core. Both run the same unchanged Brainstem core, the same GitHub Copilot sign-in (from your RAPP Brainstem) and the same model setting. Brainstem Agent runs that core inside sandboxed workers and adds everything around it.",
+  "rows": [
+    {
+      "id": "thinking",
+      "label": "Who does the thinking",
+      "core": "The core, through your Copilot sign-in",
+      "agent": "The same unchanged core and sign-in, run in sandboxed workers"
+    },
+    {
+      "id": "tools",
+      "label": "Tools out of the box",
+      "core": "As shipped (0.6.16): memory and Hacker News agents; you can add your own Python agents",
+      "agent": "Files, a sandboxed shell and scripts, background processes, web search and fetch, MCP servers, helpers, schedules and skills"
+    },
+    {
+      "id": "isolation",
+      "label": "Where tools run",
+      "core": "Your agents run as you, with your full user permissions",
+      "agent": "In the macOS sandbox: no access to your home folder or your sign-in, writes only in the workspace, and the shell has no network"
+    },
+    {
+      "id": "long-tasks",
+      "label": "Long tasks",
+      "core": "At most three tool rounds per request",
+      "agent": "Continues automatically past three rounds, within set limits, with progress and Ctrl-C to cancel"
+    },
+    {
+      "id": "always-on",
+      "label": "Always on",
+      "core": "Runs while its local server runs; you chat in the browser at localhost:7071",
+      "agent": "A daemon with a warm worker, durable schedules and an inbox, and an optional login LaunchAgent"
+    },
+    {
+      "id": "memory",
+      "label": "Memory",
+      "core": "Remembers across conversations with its memory agent",
+      "agent": "Workspace and profile memory, search across past conversations, correction and forgetting"
+    },
+    {
+      "id": "proof",
+      "label": "Proof of work",
+      "core": "A text log of agent calls",
+      "agent": "A receipt for every tool call (succeeded, failed or uncertain); a request repeated with the same idempotency key replays without a new model call"
+    },
+    {
+      "id": "surfaces",
+      "label": "Ways to use it",
+      "core": "Browser chat and its local HTTP API",
+      "agent": "A terminal session, an owner-only local web companion, and every command in JSON for other agents"
+    },
+    {
+      "id": "operations",
+      "label": "Keeping it running",
+      "core": "Rerun the installer to update",
+      "agent": "Version manifest, backup, restore and export, upgrade and rollback, uninstall, readiness checks"
+    },
+    {
+      "id": "platforms",
+      "label": "Platforms",
+      "core": "macOS, Linux and Windows",
+      "agent": "macOS only (qualified on Apple silicon)"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "file",
+      "task": "Create a file with given content",
+      "core": { "result": "Not done", "reason": "no file tool (it said so)" },
+      "agent": { "result": "Done" },
+      "detail": "2.0 s, one model call"
+    },
+    {
+      "id": "chain",
+      "task": "Six-step read-and-write chain",
+      "core": { "result": "Not done", "reason": "no file tool, and at most three tool rounds" },
+      "agent": { "result": "Done" },
+      "detail": "11 tool calls over 4 continued segments, 17.7 s"
+    },
+    {
+      "id": "web",
+      "task": "Search the web and cite the page",
+      "core": { "result": "Not done", "reason": "no web tool (it said so)" },
+      "agent": { "result": "Done" },
+      "detail": "search then fetch, cited the source page, 5.3 s"
+    },
+    {
+      "id": "memory",
+      "task": "Remember a fact, recall it in a new conversation",
+      "core": { "result": "Done" },
+      "agent": { "result": "Done" },
+      "detail": "both answered “Teal.”"
+    }
+  ],
+  "totals": {
+    "core": { "done": 1, "of": 4 },
+    "agent": { "done": 4, "of": 4 },
+    "note": "Neither side claimed an action it did not perform."
+  },
+  "costs": [
+    {
+      "id": "turn",
+      "measure": "A warm, trivial turn (median of 10)",
+      "core": { "value": "0.66 s" },
+      "agent": { "value": "0.81 s", "note": "+0.15 s: 0.08 s to start the command-line tool, 0.06 s for state, grant and receipts, 0.02 s for the longer prompt" }
+    },
+    {
+      "id": "memory-use",
+      "measure": "Memory in use",
+      "core": { "value": "56 MB", "note": "one process" },
+      "agent": { "value": "111 MB", "note": "daemon plus sandboxed worker" }
+    },
+    {
+      "id": "startup",
+      "measure": "Start to ready",
+      "core": { "value": "0.6 s" },
+      "agent": { "value": "1.5 s", "note": "a verified warm worker" }
+    },
+    {
+      "id": "cold",
+      "measure": "One command without the daemon",
+      "core": { "value": "not applicable" },
+      "agent": { "value": "about 2.0 s", "note": "starts and verifies its own sandboxed worker" }
+    }
+  ],
+  "caveat": "Small sample on one machine; Copilot latency varies. You can add your own Python agents to the core, but they run with your full permissions and stay within three tool rounds per request.",
+  "method": "Same core, interpreter, Copilot sign-in and model setting on both sides; the core ran as shipped with its own agents; every result was checked on disk and in receipts, not taken from the answer."
+}

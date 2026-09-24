@@ -97,6 +97,18 @@ const EXTERNAL_LINKS = new Set([
 const README_PAGES = new Set([REPOSITORY, RUNTIME_DOCS]);
 const CORE_PREFIX = 'https://github.com/kody-w/rapp-installer/';
 const MANIFEST_PATH = `${PUBLIC_PATH}assets/capabilities.json`;
+const COMPARISON_PATH = `${PUBLIC_PATH}assets/comparison.json`;
+
+// The core-vs-agent comparison: fixed ids in the published order, the two column names and the
+// measurement label. Every row, task and cost on the page carries data-compare="<id>".
+const COMPARISON = {
+  rows: ['thinking', 'tools', 'isolation', 'long-tasks', 'always-on', 'memory', 'proof', 'surfaces', 'operations', 'platforms'],
+  tasks: ['file', 'chain', 'web', 'memory'],
+  costs: ['turn', 'memory-use', 'startup', 'cold'],
+  columns: ['The Brainstem core on its own', 'With Brainstem Agent'],
+  measured: 'Measured 2026-09-24 on one Mac with Apple silicon',
+};
+const NEVER_CLAIMED = [/\bfaster\b/i, /no overhead/i, /fully secure/i, /unhackable/i, /deprecated/i];
 
 // The file a link into this repository shows: a blob page shows that file; with a heading anchor,
 // the home page shows README.md and a tree page shows its folder's README.md.
@@ -189,6 +201,67 @@ async function loadManifest(request) {
 
 const normalize = text => text.replace(/\s+/g, ' ').trim();
 
+async function loadComparison(request) {
+  const response = await request.get('assets/comparison.json');
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toBe('application/json');
+  return response.json();
+}
+
+// What a result or a cost cell must read, word for word, from its JSON entry.
+const resultText = side => (side.reason ? `${side.result}: ${side.reason}` : side.result);
+const costText = side => (side.note ? `${side.value} (${side.note})` : side.value);
+
+// The comparison section as rendered: bound rows, tasks and costs in document order, and the fields.
+function readComparison(page) {
+  return page.locator('#compare').evaluate(section => {
+    const text = node => (node ? node.textContent.replace(/\s+/g, ' ').trim() : null);
+    const visible = node => Boolean(node) && node.getClientRects().length > 0
+      && getComputedStyle(node).visibility !== 'hidden';
+    const field = name => [...section.querySelectorAll(`[data-compare-field="${name}"]`)]
+      .map(node => ({ text: text(node), visible: visible(node) }));
+    const cells = row => [...row.querySelectorAll('td[data-side]')];
+    const entries = table => [...section.querySelectorAll(`table.${table} tbody > tr`)].map(row => ({
+      id: row.dataset.compare ?? null,
+      visible: visible(row),
+      header: text(row.querySelector('th[scope="row"]')),
+      cells: Object.fromEntries(cells(row).map(cell => [cell.dataset.side, text(cell)])),
+      labels: Object.fromEntries(cells(row).map(cell => [cell.dataset.side, cell.dataset.label])),
+      results: Object.fromEntries(cells(row).filter(cell => cell.querySelector('.result')).map(cell => {
+        const badge = cell.querySelector('.result');
+        return [cell.dataset.side, { text: text(badge), state: badge.dataset.result, visible: visible(badge) }];
+      })),
+      values: Object.fromEntries(cells(row).filter(cell => cell.querySelector('.cost-value'))
+        .map(cell => [cell.dataset.side, text(cell.querySelector('.cost-value'))])),
+    }));
+    const tables = [...section.querySelectorAll('table')].map(table => ({
+      name: table.className,
+      caption: text(table.querySelector('caption')),
+      columns: [...table.querySelectorAll('thead th')].map(th => ({ text: text(th), scope: th.getAttribute('scope') })),
+      rowHeaders: [...table.querySelectorAll('tbody th, tfoot th')].map(th => th.getAttribute('scope')),
+    }));
+    const totals = section.querySelector('table.compare-tasks tfoot [data-compare-field="totals"]');
+    const numbers = section.cloneNode(true);
+    numbers.querySelectorAll('.eyebrow').forEach(node => node.remove());
+    return {
+      bound: [...section.querySelectorAll('[data-compare]')].map(node => node.dataset.compare),
+      tables,
+      rows: entries('compare-sides'),
+      tasks: entries('compare-tasks'),
+      costs: entries('compare-costs'),
+      totals: totals ? {
+        header: text(totals.querySelector('th[scope="row"]')),
+        core: text(totals.querySelector('td[data-side="core"]')),
+        agent: text(totals.querySelector('td[data-side="agent"]')),
+        visible: visible(totals),
+      } : null,
+      fields: Object.fromEntries(['same', 'measured', 'method', 'caveat', 'totals-note'].map(name => [name, field(name)])),
+      numbers: numbers.textContent.match(/\d+(?:[.:]\d+)*/g) ?? [],
+      scripted: section.querySelectorAll('template, script, [data-render]').length,
+    };
+  });
+}
+
 test('has one h1, the brand CTA, resolving anchors and only allowed external links', async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('./');
@@ -203,7 +276,7 @@ test('has one h1, the brand CTA, resolving anchors and only allowed external lin
   }
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   for (const [label, id] of [
-    ['Install', 'install'], ['Capabilities', 'capabilities'], ['Recorded runs', 'runs'],
+    ['Core vs agent', 'compare'], ['Install', 'install'], ['Capabilities', 'capabilities'], ['Recorded runs', 'runs'],
     ['Limits', 'limits'], ['FAQ', 'questions'],
   ]) {
     await nav.getByRole('link', { name: label, exact: true }).click();
@@ -217,7 +290,7 @@ test('has one h1, the brand CTA, resolving anchors and only allowed external lin
     expect(href).not.toBe('#');
     const url = new URL(href, baseURL);
     if (url.origin === new URL(baseURL).origin) {
-      expect([PUBLIC_PATH, MANIFEST_PATH], href).toContain(url.pathname);
+      expect([PUBLIC_PATH, MANIFEST_PATH, COMPARISON_PATH], href).toContain(url.pathname);
       if (url.hash) {
         const id = decodeURIComponent(url.hash.slice(1));
         expect(await page.evaluate(target => Boolean(document.getElementById(target)), id), href).toBe(true);
@@ -583,6 +656,195 @@ test('capability manifest and page match both ways', async ({ page, request }) =
   }
 });
 
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(`core-vs-agent comparison ${javaScriptEnabled ? 'with' : 'without'} JavaScript`, () => {
+    test.use({ javaScriptEnabled });
+
+    test('comparison data and page match both ways', async ({ page, request }) => {
+      const data = await loadComparison(request);
+      expect(Object.keys(data)).toEqual(['schema', 'measured', 'same', 'rows', 'tasks', 'totals', 'costs', 'caveat', 'method']);
+      expect(data.schema).toBe('rapp-brainstem/site-comparison-v1');
+      expect(data.measured).toEqual({ date: '2026-09-24', machine: 'one Mac with Apple silicon' });
+      expect(`Measured ${data.measured.date} on ${data.measured.machine}`).toBe(COMPARISON.measured);
+      expect(data.rows.map(row => row.id)).toEqual(COMPARISON.rows);
+      expect(data.tasks.map(task => task.id)).toEqual(COMPARISON.tasks);
+      expect(data.costs.map(cost => cost.id)).toEqual(COMPARISON.costs);
+      for (const row of data.rows) expect(Object.keys(row)).toEqual(['id', 'label', 'core', 'agent']);
+      for (const task of data.tasks) {
+        expect(Object.keys(task)).toEqual(['id', 'task', 'core', 'agent', 'detail']);
+        for (const side of [task.core, task.agent]) {
+          expect(['Done', 'Not done'], task.id).toContain(side.result);
+          // A task not done always says why.
+          expect(Boolean(side.reason), `${task.id} gives a reason exactly when not done`).toBe(side.result === 'Not done');
+        }
+      }
+      for (const cost of data.costs) {
+        expect(Object.keys(cost)).toEqual(['id', 'measure', 'core', 'agent']);
+        for (const side of [cost.core, cost.agent]) expect(side.value).toMatch(/\S/);
+      }
+      // The totals are a count of the task results, never a separate claim.
+      for (const side of ['core', 'agent']) {
+        expect(data.totals[side]).toEqual({
+          done: data.tasks.filter(task => task[side].result === 'Done').length,
+          of: data.tasks.length,
+        });
+      }
+
+      await page.goto('./');
+      const shown = await readComparison(page);
+      expect(shown.scripted, 'the comparison is static HTML').toBe(0);
+      // Page to JSON and back: every bound element is a known id, each shown once per table, in order.
+      expect(shown.bound).toEqual([...COMPARISON.rows, ...COMPARISON.tasks, ...COMPARISON.costs]);
+      expect(shown.rows.map(row => row.id)).toEqual(data.rows.map(row => row.id));
+      expect(shown.tasks.map(task => task.id)).toEqual(data.tasks.map(task => task.id));
+      expect(shown.costs.map(cost => cost.id)).toEqual(data.costs.map(cost => cost.id));
+
+      const [sides, tasks, costs] = shown.tables;
+      expect(shown.tables).toHaveLength(3);
+      for (const table of shown.tables) {
+        expect(table.caption, `${table.name} has a caption`).toMatch(/\S/);
+        expect(table.columns.every(column => column.scope === 'col' && column.text), table.name).toBe(true);
+        expect(table.rowHeaders.every(scope => scope === 'row'), table.name).toBe(true);
+      }
+      expect(sides.columns.slice(1).map(column => column.text)).toEqual(COMPARISON.columns);
+      expect(tasks.columns.map(column => column.text)).toEqual(['Task', 'Core alone', 'With Brainstem Agent', 'Detail']);
+      expect(costs.columns.map(column => column.text)).toEqual(['Measure', 'Core alone', 'With Brainstem Agent']);
+
+      data.rows.forEach((row, index) => {
+        const entry = shown.rows[index];
+        expect(entry.visible, row.id).toBe(true);
+        expect(entry.header, row.id).toBe(row.label);
+        expect(entry.cells, row.id).toEqual({ core: row.core, agent: row.agent });
+        expect(entry.labels, row.id).toEqual({ core: COMPARISON.columns[0], agent: COMPARISON.columns[1] });
+      });
+      data.tasks.forEach((task, index) => {
+        const entry = shown.tasks[index];
+        expect(entry.visible, task.id).toBe(true);
+        expect(entry.header, task.id).toBe(task.task);
+        expect(entry.cells, task.id).toEqual({ core: resultText(task.core), agent: resultText(task.agent), detail: task.detail });
+        for (const side of ['core', 'agent']) {
+          // The result is a visible word, not a colour or an icon alone.
+          expect(entry.results[side], `${task.id} ${side}`).toEqual({
+            text: task[side].result,
+            state: task[side].result === 'Done' ? 'done' : 'not-done',
+            visible: true,
+          });
+        }
+      });
+      data.costs.forEach((cost, index) => {
+        const entry = shown.costs[index];
+        expect(entry.visible, cost.id).toBe(true);
+        expect(entry.header, cost.id).toBe(cost.measure);
+        expect(entry.cells, cost.id).toEqual({ core: costText(cost.core), agent: costText(cost.agent) });
+        expect(entry.values, cost.id).toEqual({ core: cost.core.value, agent: cost.agent.value });
+      });
+
+      // The totals shown equal the JSON and a count of the results shown.
+      const count = side => shown.tasks.filter(task => task.results[side]?.text === 'Done').length;
+      expect(shown.totals).toEqual({
+        header: 'Total',
+        core: `${data.totals.core.done} of ${data.totals.core.of}`,
+        agent: `${data.totals.agent.done} of ${data.totals.agent.of}`,
+        visible: true,
+      });
+      expect(shown.totals.core).toBe(`${count('core')} of ${shown.tasks.length}`);
+      expect(shown.totals.agent).toBe(`${count('agent')} of ${shown.tasks.length}`);
+
+      expect(shown.fields).toEqual({
+        same: [{ text: data.same, visible: true }],
+        measured: [{ text: COMPARISON.measured, visible: true }],
+        method: [{ text: data.method, visible: true }],
+        caveat: [{ text: data.caveat, visible: true }],
+        'totals-note': [{ text: data.totals.note, visible: true }],
+      });
+      // No number on the comparison that the JSON does not hold.
+      const published = JSON.stringify(data);
+      for (const number of shown.numbers) expect(published, `number ${number}`).toContain(number);
+    });
+  });
+}
+
+test('puts the comparison first after the hero, linked from the navigation, the hero and the FAQ', async ({ page }) => {
+  await page.goto('./');
+  const order = await page.evaluate(() => ({
+    sections: [...document.querySelectorAll('main > section')].map(section => section.id),
+    eyebrows: [...document.querySelectorAll('main > section .eyebrow')]
+      .map(eyebrow => eyebrow.textContent.trim().match(/^(\d{2}) \//)?.[1])
+      .filter(Boolean),
+    firstNav: document.querySelector('.nav-links a')?.getAttribute('href'),
+  }));
+  expect(order.sections.slice(0, 3)).toEqual(['top', 'compare', 'install']);
+  expect(order.eyebrows).toEqual(['01', '02', '03', '04', '05', '06', '07']);
+  expect(order.firstNav).toBe('#compare');
+  await expect(page.locator('#compare .eyebrow')).toHaveText('01 / CORE VS AGENT');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(nav.getByRole('link', { name: 'Core vs agent', exact: true })).toHaveAttribute('href', '#compare');
+  await expect(page.locator('#top').getByRole('link', { name: 'How it differs from the core', exact: true }))
+    .toHaveAttribute('href', '#compare');
+  await expect(page.locator('#compare h2')).toHaveAccessibleName(/^The core you know\.\s*What the agent adds\.$/);
+  await expect(page.getByRole('table', { name: /^Side by side: the Brainstem core/ })).toBeVisible();
+
+  const question = page.locator('.faq-list details', { hasText: 'Do I still need the Brainstem core?' });
+  await expect(question).toHaveCount(1);
+  await question.locator('summary').click();
+  for (const phrase of ['Yes.', 'step 1', 'same unchanged Brainstem core', 'Linux and Windows', 'macOS only']) {
+    await expect(question.locator('p')).toContainText(phrase);
+  }
+  await expect(question.locator('a[href="#compare"]')).toHaveCount(1);
+});
+
+test('the comparison never claims faster, no overhead or fully secure', async ({ page, request }) => {
+  const raw = await (await request.get('assets/comparison.json')).text();
+  await page.goto('./');
+  const texts = {
+    comparison: await page.locator('#compare').textContent(),
+    page: await page.locator('body').textContent(),
+    json: raw,
+    metadata: (await page.locator('meta[content]').evaluateAll(metas => metas.map(meta => meta.content))).join(' '),
+  };
+  for (const [where, text] of Object.entries(texts)) {
+    for (const claim of NEVER_CLAIMED) expect(text, `${where} never matches ${claim}`).not.toMatch(claim);
+  }
+  // The costs stay beside the wins, and the caveat and the measurement label stay in view.
+  const comparison = normalize(texts.comparison);
+  for (const phrase of [COMPARISON.measured, 'What it costs.', '0.81 s', '111 MB', 'Small sample on one machine']) {
+    expect(comparison).toContain(phrase);
+  }
+});
+
+for (const width of [390, 320]) {
+  test(`stacks the comparison into labelled cards at ${width}px without overflow`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('./');
+    const layout = await page.locator('#compare').evaluate(section => {
+      const viewport = document.documentElement.clientWidth;
+      const rows = [...section.querySelectorAll('tbody > tr, tfoot > tr')];
+      return {
+        viewport,
+        page: document.documentElement.scrollWidth,
+        section: section.scrollWidth,
+        headersHidden: [...section.querySelectorAll('thead')].every(head => head.getBoundingClientRect().width <= 1),
+        problems: rows.flatMap(row => {
+          const header = row.querySelector('th').getBoundingClientRect();
+          return [...row.querySelectorAll('td')].flatMap(cell => {
+            const box = cell.getBoundingClientRect();
+            const label = getComputedStyle(cell, '::before').content;
+            const issues = [];
+            if (box.top < header.bottom - 1) issues.push('not stacked');
+            if (box.left < 0 || box.right > viewport + 1) issues.push('outside the viewport');
+            if (!label || label === 'none' || label === 'normal') issues.push('no column label');
+            return issues.map(issue => `${row.dataset.compare ?? row.dataset.compareField} ${cell.dataset.side}: ${issue}`);
+          });
+        }),
+      };
+    });
+    expect(layout.page).toBeLessThanOrEqual(layout.viewport + 1);
+    expect(layout.section).toBeLessThanOrEqual(layout.viewport + 1);
+    expect(layout.headersHidden).toBe(true);
+    expect(layout.problems).toEqual([]);
+  });
+}
+
 test('shows six illustrated primary cards in order, then the nine further capabilities', async ({ page }) => {
   await page.goto('./');
   const primary = page.locator('#capabilities .cap-grid > [data-capability]');
@@ -822,7 +1084,7 @@ test('loads only local public assets, with valid MIME types and bounded compress
     return references.filter(Boolean);
   });
   const socialImage = new URL(await page.locator('meta[property="og:image"]').getAttribute('content'));
-  assets.push(`${socialImage.pathname}${socialImage.search}`, 'assets/capabilities.json');
+  assets.push(`${socialImage.pathname}${socialImage.search}`, 'assets/capabilities.json', 'assets/comparison.json');
   for (const asset of new Set(assets)) {
     const url = new URL(asset, baseURL);
     expect(url.origin, asset).toBe(origin);
@@ -955,7 +1217,7 @@ test('works by keyboard alone with a visible focus indicator on every stop', asy
   }
   expect(stops.filter(stop => !stop.visibleFocus)).toEqual([]);
   const keys = stops.map(stop => stop.key);
-  for (const key of ['#main', '#install', '#capabilities', 'radio:macos', 'command-macos', '#troubleshooting',
+  for (const key of ['#main', '#compare', '#install', '#capabilities', 'radio:macos', 'command-macos', '#troubleshooting',
     'command-agent', 'command-first-run', 'command-everyday', 'command-remove', '#run-schedule',
     'How are RAPP Brainstem and Brainstem Agent different?', 'https://github.com/kody-w/rapp-installer/issues']) {
     expect(keys, key).toContain(key);

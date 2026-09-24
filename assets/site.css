@@ -444,6 +444,7 @@ h1 span {
   line-height: 1.6;
 }
 
+.compare-section,
 .install-section,
 .capabilities-section,
 .runs-section,
@@ -507,6 +508,269 @@ code {
 pre code {
   font-size: inherit;
   overflow-wrap: normal;
+}
+
+/* Core vs agent */
+
+.compare-section {
+  border-bottom: 1px solid #d1d1c5;
+  background: var(--paper-light);
+}
+
+.section-heading > .compare-same strong {
+  color: var(--ink);
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--ink);
+  background: var(--paper-light);
+  box-shadow: 6px 6px 0 #e2e1d7;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+}
+
+.compare-table caption {
+  padding-bottom: 0.875rem;
+  color: var(--cobalt);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.7;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 1rem 1.125rem;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.compare-table thead th {
+  padding-block: 0.75rem;
+  border-top: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+}
+
+.compare-table thead th[data-side="agent"] {
+  background: var(--cobalt);
+}
+
+.compare-table tbody th,
+.compare-table tfoot th {
+  color: var(--ink);
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+.compare-table td {
+  color: #373d4e;
+}
+
+.compare-table td[data-side="agent"] {
+  background: #f3f2fb;
+  color: var(--ink);
+}
+
+@media (min-width: 701px) {
+  .compare-sides tbody th {
+    width: 20%;
+  }
+
+  .compare-sides td {
+    width: 40%;
+  }
+
+  .compare-tasks tbody th {
+    width: 26%;
+  }
+
+  .compare-tasks td[data-side="core"] {
+    width: 27%;
+  }
+
+  .compare-tasks td[data-side="agent"] {
+    width: 17%;
+  }
+
+  .compare-costs tbody th {
+    width: 26%;
+  }
+
+  .compare-costs td[data-side="core"] {
+    width: 24%;
+  }
+}
+
+.compare-table tfoot th,
+.compare-table tfoot td {
+  border-top: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.compare-table tfoot td[data-side="agent"] {
+  background: #ebe9f1;
+}
+
+.result {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.125rem 0.5rem 0.125rem 0.4375rem;
+  border: 1px solid var(--ink);
+  background: var(--signal);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.result::before {
+  display: block;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  flex: 0 0 auto;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.result[data-result="not-done"] {
+  border-color: #6b7080;
+  border-style: dashed;
+  background: transparent;
+  color: #373d4e;
+}
+
+.result[data-result="not-done"]::before {
+  height: 0;
+  border-width: 1.5px 0 0;
+  border-radius: 0;
+  background: none;
+}
+
+.result-reason {
+  display: block;
+  margin-top: 0.375rem;
+}
+
+.total {
+  display: block;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.cost-value {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cost-note {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.compare-bench {
+  margin-top: clamp(3.5rem, 6vw, 5rem);
+  padding-top: clamp(2.5rem, 4vw, 3.25rem);
+  border-top: 1px solid var(--rule);
+}
+
+.compare-bench-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 1.5rem 4rem;
+  margin-bottom: 2.5rem;
+}
+
+.compare-bench-head > div {
+  min-width: 0;
+}
+
+.compare-measured {
+  display: inline-block;
+  margin-bottom: 1.125rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.compare-bench-head h3 {
+  font-family: var(--display);
+  font-size: clamp(2.25rem, 3.4vw, 3rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.compare-method,
+.compare-caveat,
+.compare-links {
+  max-width: 60ch;
+  color: #373d4e;
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.compare-method strong,
+.compare-caveat strong {
+  color: var(--ink);
+}
+
+.compare-subtitle {
+  margin: 0 0 1rem;
+  font-family: var(--display);
+  font-size: clamp(1.875rem, 2.6vw, 2.5rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.compare-table + .compare-subtitle {
+  margin-top: 3.25rem;
+}
+
+.compare-caveat {
+  margin-top: 2.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--cobalt);
+}
+
+.compare-links {
+  margin-top: 1rem;
 }
 
 /* Install */
@@ -1908,6 +2172,85 @@ pre code {
 
   .closing-layout h2 {
     font-size: 4rem;
+  }
+
+  .compare-bench-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+/* Narrow screens: every table row becomes a card, each cell labelled with its column. */
+@media (max-width: 700px) {
+  .compare-table,
+  .compare-table caption,
+  .compare-table tbody,
+  .compare-table tfoot,
+  .compare-table tr,
+  .compare-table th,
+  .compare-table td {
+    display: block;
+    width: auto;
+  }
+
+  .compare-table {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .compare-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .compare-table tr {
+    border: 1px solid var(--ink);
+    background: var(--paper-light);
+    box-shadow: 4px 4px 0 #e2e1d7;
+  }
+
+  .compare-table tr + tr,
+  .compare-table tfoot tr {
+    margin-top: 1rem;
+  }
+
+  .compare-table th,
+  .compare-table td {
+    padding: 0.75rem 1rem;
+  }
+
+  .compare-table tbody th,
+  .compare-table tfoot th {
+    border-top: 0;
+    font-size: 0.875rem;
+  }
+
+  .compare-table td::before {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--cobalt);
+    font-family: var(--mono);
+    font-size: 0.5625rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.7;
+    text-transform: uppercase;
+    content: attr(data-label);
+    content: attr(data-label) / "";
+  }
+
+  .compare-table tfoot th,
+  .compare-table tfoot td {
+    border-top: 1px solid var(--rule);
+  }
+
+  .compare-table tfoot th {
+    border-top: 0;
   }
 }
 

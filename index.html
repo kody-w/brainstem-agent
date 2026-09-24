@@ -41,6 +41,7 @@
         <span>RAPP<br>Brainstem</span>
       </a>
       <div class="nav-links">
+        <a href="#compare">Core vs agent</a>
         <a href="#install">Install</a>
         <a href="#capabilities">Capabilities</a>
         <a href="#runs">Recorded runs</a>
@@ -61,6 +62,7 @@
           <p class="hero-description">Your instructions. Your tools. Your machine. Brainstem Agent, the new experimental runtime for macOS, runs the unchanged Brainstem core inside the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, web and MCP.</p>
           <div class="hero-actions">
             <a class="button button-paper" href="#install">Give me my Brainstem <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="#compare">How it differs from the core <span aria-hidden="true">↓</span></a>
             <a class="text-link" href="#capabilities">See what works today <span aria-hidden="true">↓</span></a>
           </div>
           <ul class="hero-facts" aria-label="At a glance">
@@ -83,10 +85,164 @@
       </div>
     </section>
 
+    <section class="compare-section" id="compare" aria-labelledby="compare-title">
+      <div class="wrap">
+        <div class="section-heading">
+          <p class="eyebrow">01 / CORE VS AGENT</p>
+          <h2 id="compare-title">The core you know.<br>What the agent adds.</h2>
+          <p class="compare-same"><strong>What is the same.</strong> <span data-compare-field="same">Brainstem Agent does not replace the core. Both run the same unchanged Brainstem core, the same GitHub Copilot sign-in (from your RAPP Brainstem) and the same model setting. Brainstem Agent runs that core inside sandboxed workers and adds everything around it.</span></p>
+        </div>
+
+        <table class="compare-table compare-sides">
+          <caption>Side by side: the Brainstem core (Grail 0.6.16) on its own, and with Brainstem Agent</caption>
+          <thead>
+            <tr><th scope="col">Aspect</th><th scope="col" data-side="core">The Brainstem core on its own</th><th scope="col" data-side="agent">With Brainstem Agent</th></tr>
+          </thead>
+          <tbody>
+            <tr data-compare="thinking">
+              <th scope="row">Who does the thinking</th>
+              <td data-side="core" data-label="The Brainstem core on its own">The core, through your Copilot sign-in</td>
+              <td data-side="agent" data-label="With Brainstem Agent">The same unchanged core and sign-in, run in sandboxed workers</td>
+            </tr>
+            <tr data-compare="tools">
+              <th scope="row">Tools out of the box</th>
+              <td data-side="core" data-label="The Brainstem core on its own">As shipped (0.6.16): memory and Hacker News agents; you can add your own Python agents</td>
+              <td data-side="agent" data-label="With Brainstem Agent">Files, a sandboxed shell and scripts, background processes, web search and fetch, MCP servers, helpers, schedules and skills</td>
+            </tr>
+            <tr data-compare="isolation">
+              <th scope="row">Where tools run</th>
+              <td data-side="core" data-label="The Brainstem core on its own">Your agents run as you, with your full user permissions</td>
+              <td data-side="agent" data-label="With Brainstem Agent">In the macOS sandbox: no access to your home folder or your sign-in, writes only in the workspace, and the shell has no network</td>
+            </tr>
+            <tr data-compare="long-tasks">
+              <th scope="row">Long tasks</th>
+              <td data-side="core" data-label="The Brainstem core on its own">At most three tool rounds per request</td>
+              <td data-side="agent" data-label="With Brainstem Agent">Continues automatically past three rounds, within set limits, with progress and Ctrl-C to cancel</td>
+            </tr>
+            <tr data-compare="always-on">
+              <th scope="row">Always on</th>
+              <td data-side="core" data-label="The Brainstem core on its own">Runs while its local server runs; you chat in the browser at localhost:7071</td>
+              <td data-side="agent" data-label="With Brainstem Agent">A daemon with a warm worker, durable schedules and an inbox, and an optional login LaunchAgent</td>
+            </tr>
+            <tr data-compare="memory">
+              <th scope="row">Memory</th>
+              <td data-side="core" data-label="The Brainstem core on its own">Remembers across conversations with its memory agent</td>
+              <td data-side="agent" data-label="With Brainstem Agent">Workspace and profile memory, search across past conversations, correction and forgetting</td>
+            </tr>
+            <tr data-compare="proof">
+              <th scope="row">Proof of work</th>
+              <td data-side="core" data-label="The Brainstem core on its own">A text log of agent calls</td>
+              <td data-side="agent" data-label="With Brainstem Agent">A receipt for every tool call (succeeded, failed or uncertain); a request repeated with the same idempotency key replays without a new model call</td>
+            </tr>
+            <tr data-compare="surfaces">
+              <th scope="row">Ways to use it</th>
+              <td data-side="core" data-label="The Brainstem core on its own">Browser chat and its local HTTP API</td>
+              <td data-side="agent" data-label="With Brainstem Agent">A terminal session, an owner-only local web companion, and every command in JSON for other agents</td>
+            </tr>
+            <tr data-compare="operations">
+              <th scope="row">Keeping it running</th>
+              <td data-side="core" data-label="The Brainstem core on its own">Rerun the installer to update</td>
+              <td data-side="agent" data-label="With Brainstem Agent">Version manifest, backup, restore and export, upgrade and rollback, uninstall, readiness checks</td>
+            </tr>
+            <tr data-compare="platforms">
+              <th scope="row">Platforms</th>
+              <td data-side="core" data-label="The Brainstem core on its own">macOS, Linux and Windows</td>
+              <td data-side="agent" data-label="With Brainstem Agent">macOS only (qualified on Apple silicon)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="compare-bench" id="compare-measured">
+          <div class="compare-bench-head">
+            <div>
+              <p class="compare-measured" data-compare-field="measured">Measured 2026-09-24 on one Mac with Apple silicon</p>
+              <h3 id="compare-bench-title">Measured head to head.</h3>
+            </div>
+            <p class="compare-method"><strong>How it was measured.</strong> <span data-compare-field="method">Same core, interpreter, Copilot sign-in and model setting on both sides; the core ran as shipped with its own agents; every result was checked on disk and in receipts, not taken from the answer.</span></p>
+          </div>
+
+          <h4 class="compare-subtitle" id="compare-tasks-title">What got done.</h4>
+          <table class="compare-table compare-tasks">
+            <caption>Four tasks, with the result on each side</caption>
+            <thead>
+              <tr><th scope="col">Task</th><th scope="col" data-side="core">Core alone</th><th scope="col" data-side="agent">With Brainstem Agent</th><th scope="col" data-side="detail">Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr data-compare="file">
+                <th scope="row">Create a file with given content</th>
+                <td data-side="core" data-label="Core alone"><span class="result" data-result="not-done">Not done</span><span class="sr-only">:</span> <span class="result-reason">no file tool (it said so)</span></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><span class="result" data-result="done">Done</span></td>
+                <td data-side="detail" data-label="Detail">2.0 s, one model call</td>
+              </tr>
+              <tr data-compare="chain">
+                <th scope="row">Six-step read-and-write chain</th>
+                <td data-side="core" data-label="Core alone"><span class="result" data-result="not-done">Not done</span><span class="sr-only">:</span> <span class="result-reason">no file tool, and at most three tool rounds</span></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><span class="result" data-result="done">Done</span></td>
+                <td data-side="detail" data-label="Detail">11 tool calls over 4 continued segments, 17.7 s</td>
+              </tr>
+              <tr data-compare="web">
+                <th scope="row">Search the web and cite the page</th>
+                <td data-side="core" data-label="Core alone"><span class="result" data-result="not-done">Not done</span><span class="sr-only">:</span> <span class="result-reason">no web tool (it said so)</span></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><span class="result" data-result="done">Done</span></td>
+                <td data-side="detail" data-label="Detail">search then fetch, cited the source page, 5.3 s</td>
+              </tr>
+              <tr data-compare="memory">
+                <th scope="row">Remember a fact, recall it in a new conversation</th>
+                <td data-side="core" data-label="Core alone"><span class="result" data-result="done">Done</span></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><span class="result" data-result="done">Done</span></td>
+                <td data-side="detail" data-label="Detail">both answered “Teal.”</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr data-compare-field="totals">
+                <th scope="row">Total</th>
+                <td data-side="core" data-label="Core alone"><strong class="total">1 of 4</strong></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><strong class="total">4 of 4</strong></td>
+                <td data-side="detail" data-label="Detail" data-compare-field="totals-note">Neither side claimed an action it did not perform.</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <h4 class="compare-subtitle" id="compare-costs-title">What it costs.</h4>
+          <table class="compare-table compare-costs">
+            <caption>Time and memory on each side</caption>
+            <thead>
+              <tr><th scope="col">Measure</th><th scope="col" data-side="core">Core alone</th><th scope="col" data-side="agent">With Brainstem Agent</th></tr>
+            </thead>
+            <tbody>
+              <tr data-compare="turn">
+                <th scope="row">A warm, trivial turn (median of 10)</th>
+                <td data-side="core" data-label="Core alone"><strong class="cost-value">0.66 s</strong></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><strong class="cost-value">0.81 s</strong> <span class="cost-note">(+0.15 s: 0.08 s to start the command-line tool, 0.06 s for state, grant and receipts, 0.02 s for the longer prompt)</span></td>
+              </tr>
+              <tr data-compare="memory-use">
+                <th scope="row">Memory in use</th>
+                <td data-side="core" data-label="Core alone"><strong class="cost-value">56 MB</strong> <span class="cost-note">(one process)</span></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><strong class="cost-value">111 MB</strong> <span class="cost-note">(daemon plus sandboxed worker)</span></td>
+              </tr>
+              <tr data-compare="startup">
+                <th scope="row">Start to ready</th>
+                <td data-side="core" data-label="Core alone"><strong class="cost-value">0.6 s</strong></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><strong class="cost-value">1.5 s</strong> <span class="cost-note">(a verified warm worker)</span></td>
+              </tr>
+              <tr data-compare="cold">
+                <th scope="row">One command without the daemon</th>
+                <td data-side="core" data-label="Core alone"><strong class="cost-value">not applicable</strong></td>
+                <td data-side="agent" data-label="With Brainstem Agent"><strong class="cost-value">about 2.0 s</strong> <span class="cost-note">(starts and verifies its own sandboxed worker)</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="compare-caveat"><strong>Read with care.</strong> <span data-compare-field="caveat">Small sample on one machine; Copilot latency varies. You can add your own Python agents to the core, but they run with your full permissions and stay within three tool rounds per request.</span></p>
+          <p class="compare-links">The same comparison is published as <a href="assets/comparison.json">machine-readable JSON</a>. The core stays step 1: <a href="#install">install it first</a>.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="install-section" id="install" aria-labelledby="install-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">01 / INSTALL</p>
+          <p class="eyebrow">02 / INSTALL</p>
           <h2 id="install-title">A terminal away<br>from your own Brainstem.</h2>
           <p>Check the requirements first. Then two steps: install RAPP Brainstem, the core, and add Brainstem Agent, the always-on runtime, on your Mac. Each step says how you know it worked.</p>
         </div>
@@ -302,7 +458,7 @@ python3.11 -m venv .venv
     <section class="capabilities-section" id="capabilities" aria-labelledby="capabilities-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">02 / WHAT WORKS TODAY</p>
+          <p class="eyebrow">03 / WHAT WORKS TODAY</p>
           <h2 id="capabilities-title">Six things an agent needs.<br>Each labelled honestly.</h2>
           <p>Every card carries its status in Brainstem Agent <span data-manifest="runtime.version">0.2.0</span> and its main limit. The same statuses are published as <a href="assets/capabilities.json">machine-readable JSON</a>.</p>
         </div>
@@ -471,7 +627,7 @@ python3.11 -m venv .venv
     <section class="runs-section" id="runs" aria-labelledby="runs-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">03 / RECORDED RUNS</p>
+          <p class="eyebrow">04 / RECORDED RUNS</p>
           <h2 id="runs-title">Real runs, recorded.<br>Not a live demo.</h2>
           <p>Three runs of the experimental runtime, recorded on 2026-09-23 through real GitHub Copilot inference with the pinned core on macOS (Apple silicon). Prompts and answers are quoted verbatim; <span aria-hidden="true">…</span><span class="sr-only">an ellipsis</span> marks a trim.</p>
         </div>
@@ -564,7 +720,7 @@ Both files were created in parallel by the helpers as requested.</blockquote></d
     <section class="limits-section" id="limits" aria-labelledby="limits-title">
       <div class="wrap">
         <div class="section-heading">
-          <p class="eyebrow">04 / HONEST LIMITS</p>
+          <p class="eyebrow">05 / HONEST LIMITS</p>
           <h2 id="limits-title">What it needs.<br>What it isn't, yet.</h2>
           <p>Brainstem Agent is experimental. Read this before you rely on it.</p>
         </div>
@@ -595,7 +751,7 @@ Both files were created in parallel by the helpers as requested.</blockquote></d
     <section class="cell-section" id="how-it-works" aria-labelledby="cell-title">
       <div class="wrap cell-layout">
         <div class="cell-copy">
-          <p class="eyebrow">05 / HOW IT WORKS</p>
+          <p class="eyebrow">06 / HOW IT WORKS</p>
           <h2 id="cell-title">An unchanged core.<br>A cell around it.</h2>
           <p>Brainstem Agent runs the unchanged Brainstem Grail core, the stable core edition, inside private sandboxed workers, and adds everything around it: sandbox, memory, schedules, tools, helpers, web and MCP. Grail is never modified or redistributed. Setup downloads the pinned public source and checks every file's hash before use.</p>
           <ul class="cell-parts">
@@ -649,13 +805,17 @@ Both files were created in parallel by the helpers as requested.</blockquote></d
     <section class="faq-section" id="questions" aria-labelledby="faq-title">
       <div class="wrap faq-layout">
         <div class="section-heading">
-          <p class="eyebrow">06 / QUESTIONS</p>
+          <p class="eyebrow">07 / QUESTIONS</p>
           <h2 id="faq-title">A little clarity<br>goes a long way.</h2>
         </div>
         <div class="faq-list">
           <details open>
             <summary>How are RAPP Brainstem and Brainstem Agent different?</summary>
             <p>RAPP Brainstem is the product and its core engine, which step 1 installs, with a local server and a browser chat. Brainstem Agent is the experimental always-on runtime in this repository, run with the <code>brainstem-agent</code> command. It runs the Brainstem Grail core unchanged inside the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, tools, web and MCP.</p>
+          </details>
+          <details>
+            <summary>Do I still need the Brainstem core?</summary>
+            <p>Yes. The core is step 1: Brainstem Agent runs the same unchanged Brainstem core and uses the GitHub Copilot sign-in of your installed RAPP Brainstem. On Linux and Windows, the core on its own remains the choice, because Brainstem Agent is macOS only. See <a href="#compare">how the two differ</a>.</p>
           </details>
           <details>
             <summary>Why install the core first if setup downloads it?</summary>
