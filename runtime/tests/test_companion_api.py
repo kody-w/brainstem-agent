@@ -24,8 +24,13 @@ RUNTIME = Path(__file__).resolve().parents[1]
 REPO = RUNTIME.parent
 UI = RUNTIME / "brainstem_agent" / "ui"
 NEW_MODULES = ("api", "companion", "surface", "streaming", "views", "repl")
-VOLATILE = ("uptime_seconds", "t", "seq", "workers", "last_errors", "companion", "active_turn",
-            "health", "processes", "scheduler", "mcp", "signed_in")
+VOLATILE = ("workers", "last_errors", "companion", "active_turn", "health", "processes",
+            "scheduler", "mcp", "signed_in")
+# Measurements that move between two reads of the same state (uptimes, event clocks and
+# counters that tick, free disk space): their values are masked, the keys stay, so structure,
+# ids, states and every other value still compare.
+MEASURED = frozenset({"uptime_seconds", "t", "seq", "free_mb", "total_mb"})
+MEASURED_TEXT = re.compile(r"\d+(?:\.\d+)? MiB (?=free\b|are free\b)")
 
 
 def companion_routes() -> dict[str, tuple[str, str]]:
@@ -47,9 +52,12 @@ def readiness_shape(report: dict) -> dict:
 
 def stable(document):
     if isinstance(document, dict):
-        return {key: stable(value) for key, value in document.items() if key not in VOLATILE}
+        return {key: "<measured>" if key in MEASURED else stable(value)
+                for key, value in document.items() if key not in VOLATILE}
     if isinstance(document, list):
         return [stable(item) for item in document]
+    if isinstance(document, str):  # "97735 MiB free (floor 512 MiB)": the floor still compares
+        return MEASURED_TEXT.sub("<measured> MiB ", document)
     return document
 
 
