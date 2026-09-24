@@ -40,9 +40,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from . import grail, knowledge, lifeline, sandbox
+from . import grail, hygiene, knowledge, lifeline, sandbox
 from .adapter import DEFAULT_LIMITS, CoreContractError, build_core_request, normalize_sse
 from .broker import Broker
+from .credential_state import SIGN_IN, CredentialState
+from .credential_state import classify as credential_problem
 from .credentials import CredentialUnavailable, installed_credential_path, resolve_github_credential
 from .longturn import (GRANT_MARGIN, JOURNAL_CHARS, TurnBudget, bounded_stream,
                        continuation_input, crash_point, model_words, partial_text,
@@ -59,12 +61,13 @@ from .organs.sessions import SessionOrgan
 from .organs.shell import ShellOrgan
 from .organs.skills import _SCHEDULED, SkillOrgan
 from .organs.web import EgressLog, WebOrgan, read_config
+from .observe import EventLog
 from .paths import canonical, holds
 from .policy import GrantAuthority, GrantDenied, RunBinding
 from .retrieval import query_text, rank
 from .schedules import ScheduleOrgan
 from .session_index import SessionIndex
-from .state import StateError, Store
+from .state import SCHEMA_VERSION, StateError, Store
 from .worker import GrailWorker, WorkerConfig, WorkerError
 
 __all__ = ["ALL_CAPABILITIES", "AgentHost", "CORE_CAPABILITIES", "DEFAULT_CAPABILITIES",
@@ -328,6 +331,14 @@ class AgentHost:
         self.model = model or self.environ.get("BRAINSTEM_AGENT_MODEL") or "auto"
         state = _private_dir(self.home / "state")
         self.store = Store(state / "agent.sqlite3")
+        # Operations: the local event log and the credential's recorded state (never its value).
+        self.events = EventLog(self.home)
+        self.credential_state = CredentialState(self.home)
+        if self.store.pre_migration_backup:
+            backup = self.store.pre_migration_backup
+            self.events.write("store.migrated", from_schema_version=backup["from_schema_version"],
+                              to_schema_version=SCHEMA_VERSION,
+                              backup=Path(backup["path"]).name)
         try:
             self.supervisor = lifeline.Supervisor(self.home)
         except (OSError, lifeline.LifelineError) as error:
@@ -638,11 +649,27 @@ class AgentHost:
         return evidence
 
     def warm(self) -> dict | None:
-        """Start, or re-verify and keep, the warm worker between turns (never during one)."""
+        """Start, or re-verify and keep, the warm worker between turns (never during one).
+        While the credential is known to be rejected nothing starts (no retry loop); a changed
+        credential file clears that, and a new worker starts with the new token."""
         if self._closed or not self._turn_lock.acquire(blocking=False):
             return None
         try:
-            return self._ensure_worker(resolve_github_credential(environ=self.environ))
+            credential = resolve_github_credential(environ=self.environ)
+            verdict = self.credential_state.check(credential)
+            if verdict.get("changed"):
+                self.events.write("credential.changed", source=credential.source,
+                                  previous_state=verdict.get("was"))
+            if verdict.get("refuse"):
+                return None
+            try:
+                evidence = self._ensure_worker(credential)
+            except WorkerError as error:
+                self._note_credential(credential, "failed", str(error))
+                raise
+            self._note_credential(credential, "started", None,
+                                  fresh_worker=evidence.get("reused") is False)
+            return evidence
         finally:
             self._turn_lock.release()
 
@@ -698,10 +725,70 @@ class AgentHost:
                 return TurnResult(False, "cancelled", False, None, session_id, None,
                                   "The turn was cancelled before it started.",
                                   {"worker": None, "grail_calls": 0})
+            refusal = self._preflight(workspace, session_id, idempotency_key)
+            if refusal is not None:
+                return refusal
             return self._chat(message, session_id, idempotency_key, capabilities, timeout, cancel,
                               workspace, budget or self.budget_defaults, progress)
         finally:
             self._turn_lock.release()
+
+    def _preflight(self, workspace, session_id, idempotency_key) -> TurnResult | None:
+        """Refuse a new turn at once, before anything is written or started, while disk space
+        is below the floor or the Copilot credential is known to be rejected. A replay of a
+        retained turn needs neither, so it is never refused."""
+        if idempotency_key is not None:
+            try:
+                namespace = cell_namespace(OWNER, str(self._workspace(workspace)))
+                if self.store.has_replay(namespace, session_id, idempotency_key):
+                    return None
+            except (HostError, StateError):
+                return None  # the turn itself reports it
+        reason, detail = None, {}
+        message = hygiene.low_disk_refusal(self.home, self.environ)
+        if message:
+            reason, detail = "disk", {"disk": hygiene.disk_status(self.home, self.environ)}
+        else:
+            try:
+                credential = resolve_github_credential(environ=self.environ)
+            except CredentialUnavailable:
+                return None  # the turn reports a missing credential as before
+            verdict = self.credential_state.check(credential)
+            if verdict.get("changed"):
+                self.events.write("credential.changed", source=credential.source,
+                                  previous_state=verdict.get("was"))
+            if not verdict.get("refuse"):
+                return None
+            reason = "credential-" + verdict["state"].replace("_", "-")
+            message = verdict["message"]
+            detail = {"credential_state": {key: verdict.get(key) for key in
+                                           ("state", "since", "retry_after", "attempts")}}
+        self.events.write("turn.refused", level="warn", reason=reason, session_id=session_id,
+                          scheduled=bool(idempotency_key and idempotency_key.startswith("occ_")))
+        return TurnResult(False, "failed", False, None, session_id, None, message,
+                          {"refused": reason, "worker": None, "grail_calls": 0, **detail})
+
+    def _note_credential(self, credential, state: str, error: str | None, *,
+                         fresh_worker: bool = False) -> str | None:
+        """Record what a turn or warm start learned about the credential; returns the fix to
+        add to the error when the credential itself was the problem."""
+        if credential is None:
+            return None
+        kind = credential_problem(error) if state != "succeeded" and error else None
+        if kind is not None:
+            try:
+                record = self.credential_state.record_failure(credential, kind, error)
+            except OSError:
+                return SIGN_IN
+            self.events.write("credential.invalid", level="error", state=kind,
+                              source=credential.source, attempts=record["attempts"],
+                              retry_after=record["retry_after"], reason=error)
+            return SIGN_IN if kind == "invalid" else (
+                "Enable Copilot for the signed-in GitHub account, or sign in with one that has "
+                "it.")
+        if (state == "succeeded" or fresh_worker) and self.credential_state.record_success():
+            self.events.write("credential.recovered", source=credential.source)
+        return None
 
     def _replayed(self, reservation, namespace: str) -> TurnResult:
         if reservation.state == "succeeded":
@@ -762,6 +849,10 @@ class AgentHost:
         state, response, error = "failed", None, None
         secrets_: list[str] = []
         journal = None
+        credential = None
+        self.events.write("turn.started", turn_id=turn_id, session_id=session,
+                          workspace=namespace[:15], capabilities=len(caps),
+                          scheduled=bool(idempotency_key and idempotency_key.startswith("occ_")))
         try:
             journal = self.store.begin_step(namespace, turn_id, "turn", 0, {
                 "session_id": session, "capabilities": list(caps), "budget": budget.to_json(),
@@ -885,6 +976,15 @@ class AgentHost:
             error = self._redact(error, secrets_)
             if partial is not None:
                 partial["text"] = error
+        fix = self._note_credential(credential, state, error)
+        if fix and error:
+            error = f"{error} {fix}"
+            evidence["credential_problem"] = True
+        self.events.write(
+            "turn.finished", level="info" if state == "succeeded" else "warn", turn_id=turn_id,
+            session_id=session, state=state, seconds=evidence["long_turn"]["seconds"],
+            grail_requests=evidence.get("grail_calls"), tool_calls=len(evidence["receipts"]),
+            limit=run.limit, error=error[:300] if error else None)
         return TurnResult(state == "succeeded", state, False, turn_id, session, response, error,
                           evidence, partial)
 

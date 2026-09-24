@@ -620,6 +620,8 @@ class Scheduler:
         self.current: dict | None = None
         self.woken = threading.Event()
         self.stopping = threading.Event()
+        # While ``paused()`` (the daemon drains for maintenance) nothing new is claimed.
+        self.paused: Callable[[], bool] = lambda: False
 
     def wake(self) -> None:
         self.woken.set()
@@ -781,7 +783,8 @@ class Scheduler:
         while not self.stopping.is_set():
             self.woken.clear()
             try:
-                self.tick()
+                if not self.paused():
+                    self.tick()
                 if self.idle is not None and not self.stopping.is_set():
                     self.idle()
                 wake_at = self.store.next_wake()

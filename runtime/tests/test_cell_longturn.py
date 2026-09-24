@@ -326,11 +326,14 @@ class DaemonCliTests(LongTurnCase):
         time.sleep(0.3)
         started = time.monotonic()
         chat.send_signal(signal.SIGINT)
-        stdout, stderr = chat.communicate(timeout=30)
-        gone = wait_until(lambda: not any(group_exists(pid) for pid in shells), 5)
+        # The bound is on the effect (every helper's group gone), observed directly; the
+        # CLI's own exit afterwards may take longer under load (interpreter teardown).
+        gone = wait_until(lambda: not any(group_exists(pid) for pid in shells), 5,
+                          interval=0.02)
         elapsed = time.monotonic() - started
         self.assertTrue(gone, [pid for pid in shells if group_exists(pid)])
         self.assertLess(elapsed, 5.0)
+        stdout, stderr = chat.communicate(timeout=60)
         self.assertEqual(chat.returncode, 4, stderr[-500:])
         document = json.loads(stdout)
         self.assertEqual(document["state"], "cancelled")

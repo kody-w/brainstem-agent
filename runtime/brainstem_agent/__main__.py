@@ -89,7 +89,7 @@ def main() -> int:
     if sys.argv[1:2] != ["fixture"]:
         from .cli import main as cell_main
 
-        return cell_main(sys.argv[1:])
+        return cell_main(sys.argv[1:], redirect=True)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["fixture"])
     parser.add_argument("--mode", choices=["synthetic", "live"], default="synthetic")

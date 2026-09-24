@@ -179,6 +179,9 @@ class TurnTests(HostCase):
         for script, detail in ((error_script, "401"), (eof_script, "without")):
             with self.subTest(script.__name__):
                 self.script = script
+                # A fresh home each: a 401 records the credential as rejected in its home, so a
+                # later turn there is refused before Grail (see test_cell_operable_credential).
+                self.home = private_dir(self)
                 result = self.host().chat("hello")
                 self.assertFalse(result.ok)
                 self.assertEqual(result.state, "failed")

@@ -80,7 +80,13 @@ class ScriptedWorker(FakeWorker):
 
     def start(self):
         ScriptedWorker.starts += 1
-        return {**super().start(), "start_seconds": 0.0, "pid": None}
+        started = {**super().start(), "start_seconds": 0.0, "pid": None}
+        # Like unchanged Grail at startup: GitHub rejects a revoked token (credential specs).
+        if self.credential is not None and self.credential.value.startswith("ghu_Revoked"):
+            from brainstem_agent.worker import WorkerError
+            raise WorkerError("The Copilot credential was rejected: Grail reports "
+                              "invalid_credentials.")
+        return started
 
 
 def factory(**options):

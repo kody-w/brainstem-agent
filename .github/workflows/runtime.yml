@@ -70,6 +70,10 @@ jobs:
         env:
           PYTHONPATH: runtime
         run: python -m brainstem_agent fixture
+      - name: Release manifest matches the tree
+        env:
+          PYTHONPATH: runtime
+        run: python -m brainstem_agent.release --check
       - name: Install smoke test (fresh venv, console script, doctor JSON)
         timeout-minutes: 10
         shell: bash
@@ -80,15 +84,19 @@ jobs:
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/venv/bin/brainstem-agent" --help
           export BRAINSTEM_AGENT_HOME="$RUNNER_TEMP/agent-home"
+          "$RUNNER_TEMP/venv/bin/brainstem-agent" version --json > version.json
           status=0
           "$RUNNER_TEMP/venv/bin/brainstem-agent" doctor --json > doctor.json || status=$?
           "$RUNNER_TEMP/venv/bin/python" - "$status" doctor.json <<'EOF'
           import json, sys
           status, report = int(sys.argv[1]), json.load(open(sys.argv[2]))
           assert report["product"] == "Brainstem Agent", report
-          checks = {"grail_source", "worker_interpreter", "credential", "sandbox"}
+          checks = {"grail_source", "worker_interpreter", "credential", "sandbox", "disk_space",
+                    "store", "mcp", "operations_policy"}
           assert set(report["checks"]) == checks, report["checks"]
           assert isinstance(report["ready"], bool) and status == (0 if report["ready"] else 1)
+          for name, check in report["checks"].items():
+              assert check["ok"] or check["fix"], (name, check)
           print("doctor ready:", report["ready"])
           for name in sorted(checks):
               print(f"  {name}: ok={report['checks'][name]['ok']}")

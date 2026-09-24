@@ -51,7 +51,7 @@ _SPAWN_TOLERANCE = 2.0
 _WATCHDOG = ("import sys; sys.path.insert(0, sys.argv[1]); "
              "from brainstem_agent.lifeline import _watch; _watch(sys.argv[2])")
 # The launch gate: the child waits for one byte before it execs the real program. The host
-# sends it only after the pid is recorded, so a host killed in between (found by chaos-first's
+# sends it only after the pid is recorded, so a host killed in between (found by a fault-injection
 # soak) leaves a gate that reads EOF and exits, never an unrecorded program no lifeline knows.
 _GATE = ("import os, sys\n"
          "fd = int(sys.argv[1])\n"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "brainstem-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Brainstem Agent: a cell runtime around an unchanged Brainstem Grail"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,4 +23,4 @@ where = ["."]
 include = ["brainstem_agent*"]
 
 [tool.setuptools.package-data]
-brainstem_agent = ["bridge/*.py", "data/*"]
+brainstem_agent = ["bridge/*.py", "data/*", "ui/*"]

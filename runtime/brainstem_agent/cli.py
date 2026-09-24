@@ -1,5 +1,9 @@
 """Brainstem Agent command line: setup, doctor, chat, tool, memory, profile, skills, sessions,
-context, receipts, serve, status, stop, schedules, inbox and service.
+context, receipts, turns, processes, cancel, serve, status, stop, schedules, mcp, egress,
+inbox, service, the owner surfaces: repl (also ``brainstem-agent`` with no command), open
+(the web companion's one-time sign-in link) and api (any documented daemon route), and the
+operations commands version, backup, restore, export, upgrade, rollback, uninstall, prune,
+compact, logs and stats.
 
 Every command supports ``--json`` so an AI agent can drive it headlessly. Human
 output presents Brainstem Agent; credentials are only ever named by source.
@@ -24,25 +28,28 @@ import json
 import os
 import secrets
 import signal
-import subprocess
 import sys
 import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import daemon, grail, knowledge, sandbox, schedules
-from .credentials import CredentialUnavailable, resolve_github_credential
-from .host import (ALL_CAPABILITIES, TURN_CAPABILITIES, AgentHost,
-                   HostCancelled, HostError, TurnResult)
+from . import api as api_routes
+from . import backup as backups
+from . import (daemon, grail, health, hygiene, knowledge, lifecycle, observe, release, schedules,
+               views)
+from .host import (ALL_CAPABILITIES, OWNER, TURN_CAPABILITIES, AgentHost,
+                   HostCancelled, HostError, TurnResult, cell_namespace)
 from .longturn import TurnBudget
 from .organs.mcp import configured_servers, server_specs
 from .organs.skills import normalize_name, parse_skill, render_skill
 from .organs.base import OrganError
 from .organs.web import EgressLog, egress_policy, read_config
 from .retrieval import query_text
+from .paths import canonical
 from .session_index import format_hits
-from .state import StateError
+from .credentials import redact_credentials
+from .state import StateError, Store
 
 EXIT = {"succeeded": 0, "failed": 1, "uncertain": 3, "cancelled": 4, "partial": 5}
 
@@ -166,47 +173,38 @@ def cmd_setup(arguments, environ) -> int:
         return 1
     document = {"ok": True, "grail": {"commit": source.commit, "files": len(source.inventory),
                                       "origin": "seed" if seed else "cache-or-codeload"},
-                "worker_interpreter": grail.check_worker_venv(cache, environ=environ)}
-    _emit(arguments, document, f"Brainstem Agent is set up (Grail {grail.VERSION}, {python}).")
+                "worker_interpreter": grail.check_worker_venv(cache, environ=environ),
+                "health": health.summarize(health.installation_checks(
+                    _home(environ), cache, environ, import_check=False))}
+    human = f"Brainstem Agent is set up (Grail {grail.VERSION}, {python})."
+    if not document["health"]["ready"]:
+        human += "\n" + health.render(document["health"], "Next")
+    _emit(arguments, document, human)
     return 0
 
 
 def doctor_report(environ, *, deep: bool = False, workspace=None) -> dict:
-    cache = _cache(environ)
-    checks = {}
-    try:
-        source = grail.ensure_grail_source(cache, fetch=False)
-        checks["grail_source"] = {
-            "ok": True, "commit": source.commit, "kernel_sha256": grail.KERNEL_SHA256,
-            "version": grail.VERSION, "files": len(source.inventory),
-            "detail": f"all {len(source.inventory)} tracked files verified"}
-    except grail.GrailSourceError as error:
-        checks["grail_source"] = {"ok": False, "commit": grail.PINNED_COMMIT,
-                                  "kernel_sha256": grail.KERNEL_SHA256, "files": 0,
-                                  "detail": str(error)}
-    checks["worker_interpreter"] = grail.check_worker_venv(cache, environ=environ)
-    try:
-        credential = resolve_github_credential(environ=environ)
-        checks["credential"] = {"ok": True, **credential.describe(),
-                                "detail": "found (the value is never shown)"}
-    except CredentialUnavailable as error:
-        checks["credential"] = {"ok": False, "source": None, "kind": None, "detail": str(error)}
-    ready_sandbox = sandbox.available(environ)
-    if ready_sandbox:
-        probe = subprocess.run([sandbox.sandbox_exec_path(environ), "-p",
-                                "(version 1)\n(allow default)\n", "/usr/bin/true"],
-                               capture_output=True, timeout=30)
-        ready_sandbox = probe.returncode == 0
-    checks["sandbox"] = {"ok": ready_sandbox, "environment": sandbox.ENVIRONMENT,
-                         "detail": "Seatbelt sandbox-exec works" if ready_sandbox else
-                         f"{sandbox.sandbox_exec_path(environ)} is unavailable"}
-    report = {"product": "Brainstem Agent", "ready": all(c["ok"] for c in checks.values()),
-              "checks": checks}
-    record = daemon.read_record(_home(environ))
+    """The installation's readiness through the health model: every check with a reason and
+    a fix (``checks`` keeps its earlier shape), the daemon's liveness and readiness when it
+    runs, the reaching cell's configuration, and with ``deep`` a probe worker."""
+    home, cache = _home(environ), _cache(environ)
+    checks = health.installation_checks(home, cache, environ)
+    summary = health.summarize(checks)
+    by_id = {check.id: check for check in checks}
+    report = {"product": "Brainstem Agent", "ready": summary["ready"],
+              "checks": {check.id: check.legacy() for check in checks}, "health": summary}
+    record = daemon.read_record(home)
     report["daemon"] = {"running": record is not None,
                         "pid": record["pid"] if record else None}
+    if record is not None:
+        try:
+            live = daemon.Client(record).call("GET", "/v1/health", timeout=10)
+            report["daemon"].update(live=live.get("live"), ready=live.get("ready"),
+                                    failing=live.get("failing"), version=live.get("version"))
+        except daemon.DaemonError as error:
+            report["daemon"].update(live=False, error=str(error))
     # The reaching cell's reach.json (optional: problems here never block readiness).
-    path = _home(environ) / "reach.json"
+    path = home / "reach.json"
     config, error = read_config(path)
     servers, problems = server_specs(config)
     try:
@@ -216,20 +214,24 @@ def doctor_report(environ, *, deep: bool = False, workspace=None) -> dict:
     report["reach"] = {"config": str(path), "exists": path.exists(), "mcp_servers": sorted(servers),
                        "problems": [error] if error else problems}
     if deep:
-        if checks["grail_source"]["ok"] and checks["worker_interpreter"]["ok"] and ready_sandbox:
-            host = AgentHost(_home(environ), workspace=workspace, cache=cache, environ=environ)
-            try:
-                with host.exclusive():
-                    report["deep"] = host.diagnose()
-            except HostError as error:
-                report["deep"] = {"ok": False, "error": f"{error} (stop the daemon first)"}
-            finally:
-                host.close()
+        if all(by_id[name].ok for name in ("grail_source", "worker_interpreter", "sandbox")):
+            try:  # a workspace the guard refuses is a failing check, not a traceback
+                host = AgentHost(home, workspace=workspace, cache=cache, environ=environ)
+            except (HostError, StateError) as error:
+                host, report["deep"] = None, {"ok": False, "error": str(error)}
+            if host is not None:
+                try:
+                    with host.exclusive():
+                        report["deep"] = host.diagnose()
+                except HostError as error:
+                    report["deep"] = {"ok": False, "error": f"{error} (stop the daemon first)"}
+                finally:
+                    host.close()
         else:
             report["deep"] = {"ok": False, "error": "prerequisites are not ready"}
         report["ready"] = report["ready"] and report["deep"]["ok"]
-    report["problems"] = [f"{name}: {check['detail']}" for name, check in checks.items()
-                          if not check["ok"]]
+    report["problems"] = [f"{check.id}: {check.reason}" for check in checks
+                          if not check.ok and check.required]
     if deep and not report["deep"]["ok"]:
         report["problems"].append("deep: " + str(report["deep"].get("error") or
                                                  "membrane, bridge or integrity check failed"))
@@ -240,8 +242,14 @@ def cmd_doctor(arguments, environ) -> int:
     report = doctor_report(environ, deep=arguments.deep, workspace=arguments.workspace)
     if report["ready"]:
         human = "Brainstem Agent is ready."
+        if report["health"]["advisories"]:
+            human += "\n" + health.render(report["health"], "Advisories").split("\n", 1)[-1]
     else:
-        human = "Brainstem Agent is not ready:\n  " + "\n  ".join(report["problems"])
+        human = "Brainstem Agent is not ready:\n" + "\n".join(
+            line for line in health.render(report["health"]).splitlines()[1:])
+        if report.get("deep") and not report["deep"].get("ok"):
+            human += "\n  - deep: " + str(report["deep"].get("error") or
+                                           "membrane, bridge or integrity check failed")
     _emit(arguments, report, human, error=not report["ready"])
     return 0 if report["ready"] else 1
 
@@ -425,29 +433,10 @@ def _fail(arguments, error) -> int:
     return 1
 
 
-def _scope_label(host: AgentHost, skill: dict) -> str:
-    return "profile" if skill["scope"] == host.profile_namespace else "workspace"
-
-
-def _skill_summary(host: AgentHost, skill: dict) -> dict:
-    return {"name": skill["name"], "scope": _scope_label(host, skill), "state": skill["state"],
-            "review": skill["review"], "version": skill["version"], "pending": skill["pending"],
-            "description": skill["description"], "when_to_use": skill["when_to_use"],
-            "offered": skill["state"] == "active" and skill["review"] != "quarantined",
-            "uses": skill["uses"], "last_used_at": skill["last_used_at"],
-            "created_by": skill["created_by"], "created_at": skill["created_at"],
-            "updated_at": skill["updated_at"],
-            "provenance": {"author": skill["author"], "session_id": skill["session_id"],
-                           "turn_id": skill["turn_id"], "workspace": skill["workspace"],
-                           "at": skill["version_created_at"], "tainted": skill["tainted"]}}
-
-
-def _find_skill(host: AgentHost, name: str, version: int | None = None) -> dict:
-    found = host.store.get_skill([host.namespace, host.profile_namespace], normalize_name(name),
-                                 version=version)
-    if found is None:
-        raise StateError(f"No skill named {name!r} in this workspace or the owner's profile.")
-    return found
+# One implementation for the CLI and the daemon's API routes (views.py).
+_scope_label = views.scope_label
+_skill_summary = views.skill_summary
+_find_skill = views.find_skill
 
 
 def _skill_fields(arguments, current: dict | None) -> dict:
@@ -538,13 +527,10 @@ def cmd_skills(arguments, environ) -> int:
                 key: fields[key] for key in ("description", "when_to_use", "steps")},
                 author="owner", review="approved", note=arguments.note or "edited by the owner",
                 workspace=str(host.workspace), allow_disabled=True)
-        elif action == "approve":
-            changed = store.approve_skill(skill["skill_id"], version=arguments.version)
-        elif action == "reject":
-            changed = store.reject_pending_skill(skill["skill_id"])
-        elif action in ("disable", "enable"):
-            changed = store.set_skill(skill["skill_id"],
-                                      state="disabled" if action == "disable" else "active")
+        elif action in views.REVIEW_ACTIONS:  # the companion's review buttons call the same
+            changed = views.skill_review(host, skill["name"], action,
+                                         arguments.version)["skill"]
+            changed = _find_skill(host, changed["name"])
         elif action in ("share", "unshare"):
             changed = store.set_skill(skill["skill_id"], scope=host.profile_namespace
                                       if action == "share" else host.namespace)
@@ -597,7 +583,35 @@ def cmd_profile(arguments, environ) -> int:
         host.close()
 
 
+def _live_turns(host: AgentHost, environ) -> set[str] | None:
+    """The turns that may be running now, to tell running from stale: the daemon's active
+    turn when one runs (it holds the home), else what ``views.live_turns`` can tell."""
+    client = daemon.connect(_home(environ))
+    if client is not None:
+        try:
+            active = client.call("GET", "/v1/status", timeout=10).get("active_turn")
+            return {active["turn_id"]} if active else set()
+        except (daemon.DaemonError, KeyError, TypeError):
+            return None
+    return views.live_turns(host)
+
+
 def cmd_sessions(arguments, environ) -> int:
+    if arguments.action == "show":
+        if not arguments.query:
+            return _fail(arguments, "sessions show needs a session id")
+        host = _host(arguments, environ)
+        try:
+            view = views.session(host, arguments.query, active=_live_turns(host, environ))
+        except StateError as error:
+            return _fail(arguments, error)
+        finally:
+            host.close()
+        human = "\n".join(f"{turn['label']:<10} you: {turn['user_input'][:100]}\n"
+                          f"{'':<10} agent: {(turn['response'] or '(no answer recorded)')[:300]}"
+                          for turn in view["turns"])
+        _emit(arguments, view, human)
+        return 0
     if arguments.action == "forget":
         if not arguments.query:
             return _fail(arguments, "sessions forget needs a session id")
@@ -613,7 +627,8 @@ def cmd_sessions(arguments, environ) -> int:
               f"{forgotten['scheduled_answers']} scheduled-run answer(s).")
         return 0
     if arguments.action != "search":
-        return _query(arguments, environ, "sessions", lambda h: h.sessions())
+        return _query(arguments, environ, "sessions", lambda h: views.sessions(
+            h, active=_live_turns(h, environ))["sessions"])
     if not arguments.query:
         return _fail(arguments, "sessions search needs a query")
     host = _host(arguments, environ)
@@ -644,6 +659,91 @@ def cmd_context(arguments, environ) -> int:
         host.close()
     _emit(arguments, {"text": text, "report": report, "limits": knowledge.describe_budget()},
           text + f"\n\n[{report['used']} of {report['budget']} characters]")
+    return 0
+
+
+def cmd_memory(arguments, environ) -> int:
+    """List or search facts; edit or forget one (``--scope workspace|profile``)."""
+    if arguments.action == "list":
+        return _query(arguments, environ, "facts",
+                      lambda h: h.memory(arguments.search, scope=arguments.scope))
+    if not arguments.id or arguments.scope not in ("workspace", "profile"):
+        return _fail(arguments, f"memory {arguments.action} needs a fact id and --scope "
+                                "workspace or profile")
+    host = _host(arguments, environ)
+    try:
+        if arguments.action == "edit":
+            if not arguments.text:
+                return _fail(arguments, "memory edit needs --text")
+            document = views.memory_edit(host, arguments.scope, arguments.id, arguments.text)
+            human = f"[{document['fact']['fact_id']}] {document['fact']['text']}"
+        else:
+            document = views.memory_forget(host, arguments.scope, arguments.id)
+            human = "Forgotten."
+    except (StateError, ValueError) as error:
+        return _fail(arguments, error)
+    finally:
+        host.close()
+    _emit(arguments, document, human)
+    return 0
+
+
+def cmd_repl(arguments, environ) -> int:
+    from .repl import Repl
+
+    capabilities = arguments.capabilities.split(",") if getattr(arguments, "capabilities", None) \
+        else None
+    return Repl(environ, session=getattr(arguments, "session", None),
+                json_mode=getattr(arguments, "json", False),
+                workspace=_workspace_arg(arguments, environ), capabilities=capabilities,
+                quiet=getattr(arguments, "quiet", False)).run()
+
+
+def cmd_open(arguments, environ) -> int:
+    """Print a one-time sign-in link for the web companion (the daemon serves it). Never
+    opens a browser: a launched browser's argv would show the link to other local users."""
+    client = daemon.connect(_home(environ))
+    if client is None:
+        return _fail(arguments, "The companion is served by the daemon: start it with "
+                                "`brainstem-agent serve --detach`, then run open again.")
+    try:
+        if arguments.sign_out_all:
+            answer = client.call("POST", "/v1/companion/revoke", {}, timeout=10)
+            _emit(arguments, answer, f"Signed out {answer['revoked']} companion session(s).")
+            return 0
+        answer = client.call("POST", "/v1/companion/login", {}, timeout=10)
+    except daemon.DaemonError as error:
+        return _fail(arguments, error)
+    _emit(arguments, {"ok": True, **answer},
+          f"One-time sign-in link for the Brainstem Agent companion (works once, for "
+          f"{answer['expires_in']} seconds, in one browser tab; it is not saved anywhere):\n"
+          f"{answer['url']}")
+    return 0
+
+
+def cmd_api(arguments, environ) -> int:
+    """Call any documented daemon route as the owner (``GET /v1/api`` lists them)."""
+    method = arguments.method.upper()
+    route, _params, known = api_routes.match(method, arguments.path.split("?", 1)[0])
+    if route is None:
+        return _fail(arguments, f"{method} {arguments.path} is not a documented route"
+                                + (" (wrong method)" if known else "") + "; see api GET /v1/api")
+    client = daemon.connect(_home(environ))
+    if client is None:
+        return _fail(arguments, "No daemon is running (start it with `brainstem-agent serve "
+                                "--detach`).")
+    try:
+        body = json.loads(arguments.body) if arguments.body else ({} if method == "POST" else None)
+        if route.name == "requests.events":
+            for event in client.stream(arguments.path):
+                print(json.dumps(event), flush=True)
+            return 0
+        answer = client.call(method, arguments.path, body, timeout=arguments.timeout)
+    except ValueError:
+        return _fail(arguments, "--body must be JSON")
+    except daemon.DaemonError as error:
+        return _fail(arguments, error)
+    print(json.dumps(answer, indent=2))
     return 0
 
 
@@ -695,6 +795,8 @@ def cmd_serve(arguments, environ) -> int:
 
 
 def cmd_status(arguments, environ) -> int:
+    """The daemon's status with its liveness and readiness (``readiness``: every check with a
+    reason and a fix). Exit 0 when the daemon is live, 1 when it is not running."""
     client = daemon.connect(_home(environ))
     if client is not None:
         try:
@@ -704,11 +806,15 @@ def cmd_status(arguments, environ) -> int:
                       for item in status["workers"]]
             others = "".join(f", {states.count(state)} {state}" for state in
                              ("starting", "busy", "stopped") if state in states)
-            _emit(arguments, status, f"Brainstem Agent daemon {status['health']} (pid "
-                  f"{status['pid']}): {states.count('warm')} warm worker(s){others}, schedules "
-                  f"{scheduler['schedules']}, next fire {scheduler['next_fire_local']}, "
-                  f"{len(status['last_errors'])} recent error(s).")
-            return 0
+            human = (f"Brainstem Agent daemon {status['health']} (pid "
+                     f"{status['pid']}): {states.count('warm')} warm worker(s){others}, schedules "
+                     f"{scheduler['schedules']}, next fire {scheduler['next_fire_local']}, "
+                     f"{len(status['last_errors'])} recent error(s).")
+            readiness = status.get("readiness")
+            if isinstance(readiness, dict):
+                human += "\n" + health.render(readiness, "Readiness")
+            _emit(arguments, status, human)
+            return 0 if not isinstance(readiness, dict) or readiness.get("live") else 1
         except daemon.DaemonError:
             pass
     host = _host(arguments, environ)
@@ -719,15 +825,31 @@ def cmd_status(arguments, environ) -> int:
         wake = host.store.next_wake()
     finally:
         host.close()
+    readiness = health.summarize(health.not_running_checks(_home(environ), _cache(environ),
+                                                           environ))
     document = {"ok": True, "running": False, "product": "Brainstem Agent",
                 "scheduler": {"schedules": states, "next_fire_at": wake,
-                              "next_fire_local": schedules.local_iso(wake, schedules.local_zone())}}
-    _emit(arguments, document, "Brainstem Agent daemon is not running.")
+                              "next_fire_local": schedules.local_iso(wake, schedules.local_zone())},
+                "readiness": readiness}
+    _emit(arguments, document, "Brainstem Agent daemon is not running.\n"
+          + health.render(readiness, "Readiness"))
     return 1
 
 
 def cmd_stop(arguments, environ) -> int:
-    result = daemon.stop(Path(os.path.realpath(_home(environ))))
+    home = Path(os.path.realpath(_home(environ)))
+    drained = None
+    if arguments.drain:
+        client = daemon.connect(home)
+        if client is not None:
+            try:
+                drained = client.call("POST", "/v1/drain", {"timeout": arguments.timeout},
+                                      timeout=arguments.timeout + 30)
+            except daemon.DaemonError as error:
+                drained = {"drained": False, "error": str(error)}
+    result = daemon.stop(home)
+    if drained is not None:
+        result["drain"] = drained
     if not result.get("running", True):
         human = "Brainstem Agent daemon is not running."
     else:
@@ -1000,10 +1122,255 @@ def cmd_cancel(arguments, environ) -> int:
     return 0
 
 
+# -- operations: version, backup, restore, export, upgrade, rollback, uninstall, hygiene -------
+def _events(environ) -> observe.EventLog:
+    return observe.EventLog(Path(os.path.realpath(_home(environ))))
+
+
+def cmd_version(arguments, environ) -> int:
+    """The product version, the Grail pin, store schemas, digests, capabilities and the release
+    manifest check (and the running daemon's version)."""
+    home = _home(environ)
+    document = release.version_info(home if home.exists() else None)
+    client = daemon.connect(home)
+    if client is not None:
+        try:
+            document["daemon"] = {"pid": client.pid, "version_id": client.call(
+                "GET", "/v1/version", timeout=10).get("version_id")}
+        except daemon.DaemonError as error:
+            document["daemon"] = {"pid": client.pid, "error": str(error)}
+    manifest = document["release_manifest"]
+    human = (f"Brainstem Agent {document['version']} ({document['version_id']}), "
+             f"{document['install']['kind']} install, Python {document['python']}\n"
+             f"Grail {document['grail']['version']} @ {document['grail']['commit'][:12]} "
+             f"(kernel {document['grail']['kernel_sha256'][:12]}), store schema "
+             f"{document['store']['schema_version']}, release manifest "
+             + ("verified" if manifest.get("verified") else "NOT verified: "
+                + "; ".join(manifest.get("problems", [])[:3])))
+    _emit(arguments, document, human)
+    return 0 if manifest.get("verified") else 1
+
+
+def cmd_backup(arguments, environ) -> int:
+    try:
+        result = backups.create_backup(_home(environ), arguments.output,
+                                       include_secrets=arguments.include_secrets,
+                                       events=_events(environ))
+    except (backups.BackupError, StateError, OSError) as error:
+        return _fail(arguments, error)
+    excluded = [item["item"] for item in result["excluded"]]
+    _emit(arguments, result, f"Backup written to {result['path']} ({len(result['files'])} "
+          f"file(s), {result['seconds']}s). Excluded: {'; '.join(excluded)}.")
+    return 0
+
+
+def cmd_restore(arguments, environ) -> int:
+    home = _home(environ)
+    try:
+        result = backups.restore_backup(arguments.backup, home, replace=arguments.replace,
+                                        events=_events(environ))
+    except (backups.BackupError, StateError, OSError) as error:
+        return _fail(arguments, error)
+    result["health"] = health.summarize(health.installation_checks(
+        home, _cache(environ), environ, import_check=False))
+    lines = [f"Restored {', '.join(result['restored'])} into {result['home']}."]
+    lines += [f"Re-enter: {item['item']} ({item['reason']})" for item in result["needs_attention"]]
+    lines.append(health.render(result["health"]))
+    _emit(arguments, result, "\n".join(lines))
+    return 0
+
+
+def cmd_export(arguments, environ) -> int:
+    host = _host(arguments, environ)
+    try:
+        result = backups.export_data(host, arguments.output)
+    except (backups.BackupError, StateError, OSError) as error:
+        return _fail(arguments, error)
+    finally:
+        host.close()
+    counts = result["counts"]
+    _emit(arguments, result, f"Exported {counts['skills']} skill(s), {counts['memory']} memory "
+          f"fact(s), {counts['profile']} profile fact(s) and {counts['sessions']} session(s) to "
+          f"{result['path']}.")
+    return 0
+
+
+def cmd_upgrade(arguments, environ) -> int:
+    try:
+        result = lifecycle.upgrade(_home(environ), environ, arguments.source,
+                                   dry_run=arguments.dry_run,
+                                   drain_timeout=arguments.drain_timeout, force=arguments.force)
+    except (lifecycle.LifecycleError, backups.BackupError, StateError, OSError) as error:
+        return _fail(arguments, error)
+    if not result.get("ok"):
+        return _fail(arguments, result.get("error"))
+    if arguments.dry_run:
+        human = (f"Would upgrade {result['from']} -> {result['to']} (manifest verified; store "
+                 f"{result.get('store', {}).get('verdict', '-')}; daemon running: "
+                 f"{result.get('daemon_running')}).")
+    elif not result.get("changed", True):
+        human = f"Nothing to do: {result['reason']}."
+    else:
+        human = (f"Upgraded {result['from']} -> {result['to']}; the previous version stays "
+                 f"installed (brainstem-agent rollback). Pre-upgrade backup: "
+                 f"{result.get('pre_upgrade_backup')}. Now: {result.get('health')}")
+    _emit(arguments, result, human)
+    return 0
+
+
+def cmd_rollback(arguments, environ) -> int:
+    try:
+        result = lifecycle.rollback(_home(environ), environ, dry_run=arguments.dry_run,
+                                    drain_timeout=arguments.drain_timeout, force=arguments.force,
+                                    restore=arguments.restore)
+    except (lifecycle.LifecycleError, backups.BackupError, StateError, OSError) as error:
+        return _fail(arguments, error)
+    verb = "Would roll back" if arguments.dry_run else "Rolled back"
+    _emit(arguments, result, f"{verb} {result['from']} -> {result['to']}."
+          + ("" if arguments.dry_run else f" Now: {result.get('health')}"))
+    return 0
+
+
+def cmd_uninstall(arguments, environ) -> int:
+    result = lifecycle.uninstall(_home(environ), environ, dry_run=arguments.dry_run,
+                                 remove_home=arguments.remove_home, confirm=arguments.confirm)
+    lines = [("Would remove:" if arguments.dry_run else "Removed:" if result["ok"] else
+              "Not removed:")]
+    lines += [f"  {item['kind']}: {item.get('path') or item.get('pid')}" for item in
+              result.get("removed", result["remove"])]
+    lines += ["Keeps:"] + [f"  {item['path']} ({item['reason']})" for item in result["keep"]]
+    lines += [f"Refused: {item}" for item in result["refused"]]
+    _emit(arguments, result, "\n".join(lines), error=not result["ok"])
+    if result.get("needs_confirmation"):
+        return 2
+    return 0 if result["ok"] else 1
+
+
+def _open_store(environ) -> Store | None:
+    path = _home(environ) / "state" / "agent.sqlite3"
+    return Store(path) if path.exists() else None
+
+
+def cmd_prune(arguments, environ) -> int:
+    home = _home(environ)
+    policy, problems = hygiene.load_policy(home, environ)
+    try:
+        store = _open_store(environ)
+        if store is None:
+            result = {"ok": True, "dry_run": arguments.dry_run, "categories": {}, "total": 0,
+                      "policy": policy["retention"]}
+        else:
+            with store:
+                result = hygiene.prune(home, store, dry_run=arguments.dry_run, policy=policy)
+    except (StateError, OSError) as error:
+        return _fail(arguments, error)
+    result["policy_problems"] = problems
+    if not arguments.dry_run:
+        _events(environ).write("prune.completed", total=result["total"], categories={
+            name: entry.get("deleted", 0) for name, entry in result["categories"].items()})
+    lines = [f"{'Would remove' if arguments.dry_run else 'Removed'} {result['total']} record(s):"]
+    lines += [f"  {name}: {entry.get('count', 0)}" for name, entry in result["categories"].items()]
+    _emit(arguments, result, "\n".join(lines))
+    return 0
+
+
+def cmd_compact(arguments, environ) -> int:
+    """VACUUM the store; needs the home to itself (stop the daemon first)."""
+    import fcntl
+
+    home = _home(environ)
+    lock_path = home / "state" / "host.lock"
+    try:
+        store = _open_store(environ)
+    except StateError as error:
+        return _fail(arguments, error)
+    if store is None:
+        _emit(arguments, {"ok": True, "compacted": False, "reason": "no store yet"},
+              "Nothing to compact: this home has no store yet.")
+        return 0
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return _fail(arguments, "The daemon (or another command) is using this home; stop it "
+                                    "first (brainstem-agent stop), then compact.")
+        with store:
+            result = hygiene.compact(home, store, environ=environ)
+    except (StateError, OSError) as error:
+        return _fail(arguments, error)
+    finally:
+        os.close(descriptor)
+    if not result["ok"]:
+        return _fail(arguments, result["error"])
+    result["health"] = health.summarize(health.installation_checks(
+        home, _cache(environ), environ, import_check=False))
+    _events(environ).write("compact.completed", reclaimed_bytes=result["reclaimed_bytes"],
+                           seconds=result["seconds"])
+    _emit(arguments, result, f"Compacted the store: {result['bytes_before']} -> "
+          f"{result['bytes_after']} bytes ({result['seconds']}s, check {result['quick_check']}).")
+    return 0
+
+
+def cmd_logs(arguments, environ) -> int:
+    """The local logs with filters: the cell's event log (default), the daemon's output, the
+    workers' logs or the outbound request log."""
+    home = _home(environ)
+    try:
+        since, until = observe.parse_when(arguments.since), observe.parse_when(arguments.until)
+    except ValueError as error:
+        return _fail(arguments, error)
+    source = arguments.source
+    if source == "events":
+        entries = observe.read_events(home, since=since, until=until, level=arguments.level,
+                                      event=arguments.event, turn=arguments.turn,
+                                      grep=arguments.grep, limit=arguments.limit)
+        human = "\n".join(f"{item['at']} {item['level']:5} {item['event']} " + " ".join(
+            f"{key}={item[key]}" for key in item if key not in ("at", "ts", "level", "event",
+                                                                "pid")) for item in entries)
+    elif source == "egress":
+        entries = observe.read_egress(home, since=since, grep=arguments.grep,
+                                      limit=arguments.limit)
+        human = "\n".join(json.dumps(item) for item in entries)
+    else:
+        paths = ([home / "logs" / "daemon.log.1", home / "logs" / "daemon.log"]
+                 if source == "daemon" else list(reversed(hygiene.worker_logs(home))))
+        entries = observe.read_text_log([item for item in paths if item.exists()],
+                                        grep=arguments.grep, limit=arguments.limit, since=since)
+        human = "\n".join(f"{item['file']}: {item['line']}" for item in entries)
+    _emit(arguments, {"ok": True, "source": source, "entries": entries},
+          human or f"(no {source} entries)")
+    return 0
+
+
+def cmd_stats(arguments, environ) -> int:
+    """Turns, outcomes, uncertainty, latency percentiles, tool usage and fire delays from the
+    local store (the whole home, or one --workspace)."""
+    try:
+        since, until = observe.parse_when(arguments.since), observe.parse_when(arguments.until)
+    except ValueError as error:
+        return _fail(arguments, error)
+    namespace = (cell_namespace(OWNER, str(canonical(arguments.workspace)))
+                 if arguments.workspace else None)
+    try:
+        store = _open_store(environ)
+        if store is None:
+            _emit(arguments, {"ok": True, "turns": {"total": 0}}, "No turns yet.")
+            return 0
+        with store:
+            stats = observe.compute_stats(store, since=since, until=until, namespace=namespace,
+                                          home=_home(environ))
+    except (StateError, OSError) as error:
+        return _fail(arguments, error)
+    _emit(arguments, {"ok": True, **stats}, observe.summarize(stats))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="brainstem-agent",
-                                     description="Brainstem Agent: a cell around Brainstem Grail.")
-    commands = parser.add_subparsers(dest="command", required=True)
+                                     description="Brainstem Agent: a cell around Brainstem Grail. "
+                                                 "With no command: the interactive terminal.")
+    commands = parser.add_subparsers(dest="command")
 
     def command(name, help_text, *, workspace=True):
         sub = commands.add_parser(name, help=help_text)
@@ -1034,9 +1401,13 @@ def build_parser() -> argparse.ArgumentParser:
     tool.add_argument("name")
     tool.add_argument("--arguments", default="{}")
     tool.add_argument("--capabilities")
-    memory = command("memory", "list or search memory (this workspace and the owner's profile)")
+    memory = command("memory", "list or search memory (this workspace and the owner's profile), "
+                               "or edit or forget one fact")
+    memory.add_argument("action", nargs="?", choices=["list", "edit", "forget"], default="list")
+    memory.add_argument("id", nargs="?", help="fact id (edit, forget)")
     memory.add_argument("--search")
     memory.add_argument("--scope", choices=["all", "workspace", "profile"], default="all")
+    memory.add_argument("--text", help="edit: the new text")
     profile = command("profile", "list, add, edit or forget the owner's profile facts")
     profile.add_argument("action", choices=["list", "add", "edit", "forget"])
     profile.add_argument("id", nargs="?", help="fact id (edit, forget)")
@@ -1059,11 +1430,12 @@ def build_parser() -> argparse.ArgumentParser:
     skills.add_argument("--note", help="edit/import: change note")
     skills.add_argument("--shared", action="store_true", help="import: offer in every workspace")
     skills.add_argument("--output", help="export: write to this new file")
-    sessions = command("sessions", "list sessions, search past turns in this workspace, or "
-                                   "forget one session")
-    sessions.add_argument("action", nargs="?", choices=["list", "search", "forget"],
+    sessions = command("sessions", "list sessions, show one (every turn and its state), search "
+                                   "past turns in this workspace, or forget one session")
+    sessions.add_argument("action", nargs="?", choices=["list", "show", "search", "forget"],
                           default="list")
-    sessions.add_argument("query", nargs="?", help="search: keywords; forget: a session id")
+    sessions.add_argument("query", nargs="?",
+                          help="search: keywords; show, forget: a session id")
     sessions.add_argument("--limit", type=int, default=5)
     context = command("context", "preview the learned context (budgeted memory, profile, skill "
                                  "index and AGENTS.md) a message would be offered")
@@ -1083,7 +1455,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve = command("serve", "run the always-on daemon (foreground; --detach to background)")
     serve.add_argument("--detach", action="store_true")
     command("status", "report the daemon's health, warm workers, schedules and last errors")
-    command("stop", "stop the daemon and its workers", workspace=False)
+    stop = command("stop", "stop the daemon and its workers", workspace=False)
+    stop.add_argument("--drain", action="store_true",
+                      help="let the running turn and scheduled run finish first")
+    stop.add_argument("--timeout", type=float, default=300.0,
+                      help="seconds to wait for --drain (default 300)")
     plan = command("schedules", "list, show, create, edit, pause, resume, run-now, remove, runs")
     plan.add_argument("action", choices=["list", "show", "create", "edit", "pause", "resume",
                                          "run-now", "remove", "runs"])
@@ -1114,20 +1490,129 @@ def build_parser() -> argparse.ArgumentParser:
     service = command("service", "install or uninstall the launchd LaunchAgent", workspace=False)
     service.add_argument("action", choices=["install", "uninstall"])
     service.add_argument("--dry-run", action="store_true")
+    repl = command("repl", "the interactive terminal (also: brainstem-agent with no command); "
+                           "--json is a line protocol for agents")
+    repl.add_argument("--session", help="resume this session")
+    repl.add_argument("--capabilities")
+    repl.add_argument("--quiet", action="store_true", help="no progress lines")
+    opener = command("open", "print a one-time sign-in link for the web companion (the daemon "
+                             "serves it on 127.0.0.1; never opens a browser)", workspace=False)
+    opener.add_argument("--sign-out-all", action="store_true",
+                        help="end every companion session and unused link")
+    call = command("api", "call a documented daemon route as the owner (GET /v1/api lists "
+                          "them; event streams print one JSON line per event)", workspace=False)
+    call.add_argument("method", help="GET or POST")
+    call.add_argument("path", help="for example /v1/sessions")
+    call.add_argument("--body", help="JSON object for POST")
+    call.add_argument("--timeout", type=float, default=60.0)
+    command("version", "show the version, Grail pin, store schema, digests and capabilities, and "
+                       "verify the release manifest", workspace=False)
+    saving = command("backup", "write a verified backup of the store, learned knowledge, "
+                               "schedules, inbox and owner config (secrets excluded)",
+                     workspace=False)
+    saving.add_argument("--output", type=Path, help="a new directory (default: "
+                                                    "<home>/backups/<UTC time>)")
+    saving.add_argument("--include-secrets", action="store_true",
+                        help="keep reach.json as is (MCP environment values, URL keys)")
+    restoring = command("restore", "verify a backup and restore it into this home",
+                        workspace=False)
+    restoring.add_argument("backup", type=Path)
+    restoring.add_argument("--replace", action="store_true",
+                           help="replace an existing store (a safety backup is taken first)")
+    exporting = command("export", "write skills, memory, profile and sessions in portable "
+                                  "formats (markdown and JSON lines)")
+    exporting.add_argument("--output", type=Path, required=True, help="a new directory")
+    upgrading = command("upgrade", "install a local release side by side, drain the daemon and "
+                                   "switch to it (never downloads)", workspace=False)
+    upgrading.add_argument("--from", dest="source", type=Path, required=True,
+                           help="a repository checkout, its runtime/ directory, a zipapp or a "
+                                "wheel")
+    upgrading.add_argument("--dry-run", action="store_true")
+    upgrading.add_argument("--drain-timeout", type=float, default=300.0,
+                           help="seconds to let running work finish (default 300)")
+    upgrading.add_argument("--force", action="store_true",
+                           help="cancel running work if it does not finish in time")
+    rolling = command("rollback", "switch back to the previous installed version",
+                      workspace=False)
+    rolling.add_argument("--dry-run", action="store_true")
+    rolling.add_argument("--drain-timeout", type=float, default=300.0)
+    rolling.add_argument("--force", action="store_true")
+    rolling.add_argument("--restore", type=Path,
+                         help="first put back the store of this pre-upgrade backup (the current "
+                              "store is kept in a safety backup)")
+    removing = command("uninstall", "remove the service, daemon, caches, worker trees, logs and "
+                                    "versions (the home only with --remove-home and --confirm)",
+                       workspace=False)
+    removing.add_argument("--dry-run", action="store_true")
+    removing.add_argument("--remove-home", action="store_true")
+    removing.add_argument("--confirm", help="the home's path, exactly, to confirm --remove-home")
+    pruning = command("prune", "apply the retention policy (receipts, run events, inbox, egress "
+                               "log)", workspace=False)
+    pruning.add_argument("--dry-run", action="store_true", help="only report what would go")
+    command("compact", "compact the store (VACUUM); stop the daemon first", workspace=False)
+    logs = command("logs", "read the local logs with filters", workspace=False)
+    logs.add_argument("--source", choices=["events", "daemon", "worker", "egress"],
+                      default="events")
+    logs.add_argument("--since", help="30m, 2h, 7d or an ISO date-time")
+    logs.add_argument("--until", help="30m, 2h, 7d or an ISO date-time")
+    logs.add_argument("--level", choices=list(observe.LEVELS))
+    logs.add_argument("--event", help="event name or pattern, for example 'turn.*'")
+    logs.add_argument("--turn", help="a turn id")
+    logs.add_argument("--grep", help="case-insensitive text")
+    logs.add_argument("--limit", type=int, default=100)
+    stats = command("stats", "turns, outcomes, uncertainty, latency percentiles, tool usage and "
+                             "fire delays from the local store")
+    stats.add_argument("--since", help="30m, 2h, 7d or an ISO date-time")
+    stats.add_argument("--until", help="30m, 2h, 7d or an ISO date-time")
     return parser
 
 
-def main(argv=None, environ=None) -> int:
+_NO_REDIRECT = frozenset({"upgrade", "rollback", "uninstall"})
+
+
+def main(argv=None, environ=None, *, redirect: bool | None = None) -> int:
+    """Run one command. A real invocation (the console script, ``python -m brainstem_agent``
+    or the zipapp) continues in the home's active version when this code is one the home has
+    moved away from (``release.redirect_target``); upgrade, rollback and uninstall never do."""
+    real = argv is None if redirect is None else redirect
     environ = dict(os.environ if environ is None else environ)
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if real and (argv[:1] or [""])[0] not in _NO_REDIRECT:
+        target, note = release.redirect_target(_home(environ), environ)
+        if note:
+            print(f"Brainstem Agent: {note}", file=sys.stderr)
+        if target is not None:
+            env = dict(os.environ)
+            env["PYTHONPATH"] = os.pathsep.join([str(target), *[item for item in env.get(
+                "PYTHONPATH", "").split(os.pathsep) if item]])
+            env["BRAINSTEM_AGENT_REDIRECTED"] = target.name
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.execve(sys.executable, [sys.executable, "-m", "brainstem_agent", *argv], env)
     arguments = build_parser().parse_args(argv)
+    if arguments.command is None:  # `brainstem-agent` alone: the interactive terminal
+        arguments = build_parser().parse_args(["repl"])
     handlers = {
         "setup": cmd_setup, "doctor": cmd_doctor, "chat": cmd_chat, "tool": cmd_tool,
-        "memory": lambda a, e: _query(a, e, "facts", lambda h: h.memory(a.search, scope=a.scope)),
+        "memory": cmd_memory,
         "profile": cmd_profile, "skills": cmd_skills, "sessions": cmd_sessions,
         "context": cmd_context,
         "receipts": lambda a, e: _query(a, e, "receipts", lambda h: h.receipts(a.turn)),
         "turns": cmd_turns, "processes": cmd_processes, "cancel": cmd_cancel,
         "serve": cmd_serve, "status": cmd_status, "stop": cmd_stop, "schedules": cmd_schedules,
         "inbox": cmd_inbox, "service": cmd_service, "mcp": cmd_mcp, "egress": cmd_egress,
+        "repl": cmd_repl, "open": cmd_open, "api": cmd_api,
+        "version": cmd_version, "backup": cmd_backup, "restore": cmd_restore,
+        "export": cmd_export, "upgrade": cmd_upgrade, "rollback": cmd_rollback,
+        "uninstall": cmd_uninstall, "prune": cmd_prune, "compact": cmd_compact,
+        "logs": cmd_logs, "stats": cmd_stats,
     }
-    return handlers[arguments.command](arguments, environ)
+    try:
+        return handlers[arguments.command](arguments, environ)
+    except (StateError, HostError) as error:  # the store or host refused: JSON, no traceback
+        cause = error.__cause__
+        text = str(error) if cause is None or str(cause) in str(error) else f"{error} ({cause})"
+        if isinstance(error, StateError) and "store" not in text.lower():
+            text = (f"The cell's store could not be used: {text}. See brainstem-agent doctor; "
+                    "if it persists, restore the latest backup (brainstem-agent restore).")
+        return _fail(arguments, redact_credentials(text))

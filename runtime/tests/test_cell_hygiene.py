@@ -298,7 +298,7 @@ GrailWorker(config, register=lambda *_: "key").start()
 
 @unittest.skipUnless(sandbox.available(), "Seatbelt sandbox-exec is unavailable")
 class LaunchGateTests(Case):
-    """The window between Popen and recording the pid (found by chaos-first's soak)."""
+    """The window between Popen and recording the pid (found by a fault-injection soak)."""
 
     def host(self, script, *arguments):
         env = {"PATH": "/usr/bin:/bin", "HOME": str(OWNER_HOME), "LANG": "en_US.UTF-8"}

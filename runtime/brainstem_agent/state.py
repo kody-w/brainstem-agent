@@ -13,9 +13,11 @@ OS identity or make filesystem effects atomic with database commits.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import math
 import os
+import signal
 import sqlite3
 import stat
 import re
@@ -308,6 +310,152 @@ _SCHEMA.update({
     "processes_state": """CREATE INDEX processes_state ON processes (namespace, state)""",
 })
 _KNOWN_LAYOUTS = {1: (_V1_TABLES,), 2: (_V2_TABLES, _V2S_TABLES, _V2L_TABLES)}
+
+
+def schema_digest(statements: dict[str, str]) -> str:
+    """SHA-256 of a schema (object name -> CREATE statement, whitespace normalized)."""
+    text = "\n".join(f"{name}\t{' '.join(sql.split())}" for name, sql in sorted(statements.items()))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+SCHEMA_VERSION = _VERSION
+SCHEMA_DIGEST = schema_digest(_SCHEMA)
+# The older layouts this version migrates in place (after a pre-migration backup).
+MIGRATES_FROM = tuple({"schema_version": version,
+                       "schema_sha256": schema_digest({name: _SCHEMA[name] for name in layout})}
+                      for version, layouts in _KNOWN_LAYOUTS.items() for layout in layouts)
+# Test hook (like ``longturn.crash_point``): SIGKILL this process in the middle of a store
+# migration when the owner's environment names ``store.migrating`` in BRAINSTEM_AGENT_CRASH_AT.
+STORE_CRASH_POINTS = frozenset({"store.migrating"})
+
+
+def _store_crash_point(name: str) -> None:
+    spec = os.environ.get("BRAINSTEM_AGENT_CRASH_AT")
+    if spec and name in STORE_CRASH_POINTS and name in (
+            item.strip().partition("#")[0] for item in spec.split(",")):
+        os.kill(os.getpid(), signal.SIGKILL)
+
+
+def _schema_of(connection: sqlite3.Connection) -> dict[str, str]:
+    return {row[0]: " ".join(row[1].split()) for row in connection.execute(
+        "SELECT name, sql FROM sqlite_schema WHERE substr(name, 1, 7) <> 'sqlite_'")
+        if type(row[1]) is str}
+
+
+def classify_schema(version: int, application_id: int, actual: dict[str, str]) -> str:
+    """``current``, ``migrates`` (a known older layout), ``newer`` (a later version wrote it:
+    a higher version, or every current table plus unknown ones), ``foreign`` or ``unknown``."""
+    ours = {name: " ".join(statement.split()) for name, statement in _SCHEMA.items()}
+    if application_id != _APPLICATION_ID:
+        return "foreign"
+    if version == _VERSION and actual == ours:
+        return "current"
+    for layout in _KNOWN_LAYOUTS.get(version, ()):
+        if actual == {name: ours[name] for name in layout}:
+            return "migrates"
+    if version > _VERSION or (version == _VERSION and actual.items() > ours.items()):
+        return "newer"
+    return "unknown"
+
+
+def inspect_database(path: str | os.PathLike[str]) -> dict[str, Any]:
+    """What a store file holds, read-only (never migrates, never writes)."""
+    path = Path(path)
+    if not path.exists():
+        return {"exists": False}
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5.0)
+        try:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            application = connection.execute("PRAGMA application_id").fetchone()[0]
+            actual = _schema_of(connection)
+        finally:
+            connection.close()
+    except sqlite3.Error as error:
+        return {"exists": True, "readable": False, "error": str(error)[:200]}
+    return {"exists": True, "readable": True, "schema_version": version,
+            "schema_sha256": schema_digest(actual), "objects": len(actual),
+            "bytes": path.stat().st_size,
+            "compatibility": classify_schema(version, application, actual)}
+
+
+def read_counts(path: str | os.PathLike[str]) -> dict[str, int]:
+    """Row counts of the main tables, read-only (never migrates, never writes)."""
+    connection = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True, timeout=5.0)
+    try:
+        present = _schema_of(connection)
+        return {table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+                for table in ("chats", "facts", "skills", "schedules", "occurrences", "receipts")
+                if table in present}
+    finally:
+        connection.close()
+
+
+class _StillLocked(Exception):
+    pass
+
+
+def backup_database(source: str | os.PathLike[str], target: str | os.PathLike[str], *,
+                    timeout: float = 60.0) -> dict:
+    """A consistent copy of a store with SQLite's online backup API (writers elsewhere may
+    keep working), written to a new 0600 ``target``, integrity-checked and synced. A store
+    another connection keeps locked (a write transaction mid-commit) for ``timeout`` seconds
+    fails the copy instead of waiting forever (Python's backup retries a busy source
+    endlessly); nothing is left at ``target``."""
+    source, target = Path(source), Path(target)
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    os.close(descriptor)
+    started = time.monotonic()
+    deadline = started + max(0.0, timeout)
+
+    def progress(status: int, _remaining: int, _total: int) -> None:
+        if status in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED) and \
+                time.monotonic() >= deadline:
+            raise _StillLocked()
+
+    try:
+        reader = sqlite3.connect(f"file:{source}?mode=ro", uri=True,
+                                 timeout=max(0.05, min(5.0, timeout)))
+        writer = sqlite3.connect(target, timeout=30.0)
+        try:
+            reader.backup(writer, progress=progress)
+            writer.commit()
+            check = [row[0] for row in writer.execute("PRAGMA integrity_check")]
+            version = writer.execute("PRAGMA user_version").fetchone()[0]
+            application = writer.execute("PRAGMA application_id").fetchone()[0]
+            actual = _schema_of(writer)
+            counts = {}
+            for table in ("chats", "facts", "skills", "schedules", "occurrences", "receipts",
+                          "turn_steps"):
+                if table in actual:
+                    counts[table] = writer.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+        finally:
+            writer.close()
+            reader.close()
+    except _StillLocked:
+        target.unlink(missing_ok=True)
+        raise StateError(f"The store stayed locked by another connection for {timeout:g}s "
+                         "(a write transaction was open), so it was not copied; nothing was "
+                         "written. Try again when the cell is idle.") from None
+    except sqlite3.Error as error:
+        target.unlink(missing_ok=True)
+        if time.monotonic() >= deadline and "locked" in str(error):
+            raise StateError(f"The store stayed locked by another connection for {timeout:g}s "
+                             "(a write transaction was open), so it was not copied; nothing "
+                             "was written. Try again when the cell is idle.") from None
+        raise StateError(f"The store could not be backed up: {error}") from None
+    os.chmod(target, 0o600)
+    with open(target, "rb") as handle:
+        os.fsync(handle.fileno())
+    if check != ["ok"]:
+        target.unlink(missing_ok=True)
+        raise StateError("The store's backup copy failed its integrity check")
+    return {"method": "sqlite-online-backup", "integrity_check": "ok", "schema_version": version,
+            "schema_sha256": schema_digest(actual),
+            "compatibility": classify_schema(version, application, actual), "counts": counts,
+            "bytes": target.stat().st_size, "seconds": round(time.monotonic() - started, 3)}
+
+
 _STEP_STATES = frozenset({"running", "succeeded", "partial", "failed", "uncertain", "cancelled"})
 _STEP_KINDS = frozenset({"turn", "segment", "child"})
 _PROCESS_STATES = frozenset({"starting", "running", "exited", "stopped", "failed", "lost"})
@@ -536,6 +684,9 @@ class Store:
             self._connection.execute("PRAGMA foreign_keys = ON")
             self._connection.execute("PRAGMA trusted_schema = OFF")
             self._connection.execute("PRAGMA secure_delete = ON")
+            self.pre_migration_backup: dict | None = None
+            if not created:
+                self._before_migration()
             with self._transaction() as connection:
                 if created:
                     for statement in _SCHEMA.values():
@@ -550,7 +701,8 @@ class Store:
             self._connection.execute("PRAGMA synchronous = FULL")
         except (OSError, sqlite3.Error) as exc:
             self.close()
-            raise StateError("Cannot open private fixture database") from exc
+            raise StateError(f"Cannot open the cell's private store "
+                             f"({type(exc).__name__}: {str(exc)[:200]})") from exc
         except BaseException:
             self.close()
             raise
@@ -617,6 +769,40 @@ class Store:
                     raise StateError("Fixture database transaction failed") from exc
                 raise
 
+    def _before_migration(self) -> None:
+        """Read-only look before any write: a store from a newer version is refused (nothing
+        is written), and an older layout is copied aside before it is migrated, so a failed
+        or interrupted migration never costs the original."""
+        connection = self._connection
+        with self._lock:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            application = connection.execute("PRAGMA application_id").fetchone()[0]
+            actual = _schema_of(connection)
+        kind = classify_schema(version, application, actual)
+        if kind == "newer":
+            extra = sorted(set(actual) - set(_SCHEMA))
+            raise StateError(
+                f"Unknown store schema (version {version}"
+                + (f", unknown tables {', '.join(extra[:5])}" if extra else "")
+                + f"): it was written by a newer Brainstem Agent; this version reads schema "
+                f"{_VERSION}. Nothing was changed. Upgrade Brainstem Agent, or restore a backup "
+                "made by this version.")
+        if kind != "migrates":
+            return
+        folder = self._path.parent / "pre-migration"
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        target = folder / f"{self._path.stem}-v{version}-{schema_digest(actual)[:8]}-{stamp}.sqlite3"
+        try:
+            folder.mkdir(mode=0o700, exist_ok=True)
+            _private_directory(folder)
+            if target.exists():
+                target = target.with_name(f"{target.stem}-{uuid.uuid4().hex[:6]}.sqlite3")
+            self.pre_migration_backup = {"path": str(target), "from_schema_version": version,
+                                         **backup_database(self._path, target)}
+        except (OSError, StateError) as error:
+            raise StateError(f"The store needs a migration, but its pre-migration backup could "
+                             f"not be written ({error}); nothing was changed.") from None
+
     def _migrate(self, connection: sqlite3.Connection) -> None:
         """Upgrade an exact v1, Cell v1 v2 or scheduling v2 schema inside the open transaction;
         never reset."""
@@ -637,6 +823,7 @@ class Store:
                 for name, statement in _SCHEMA.items():
                     if name not in known:
                         connection.execute(statement)
+                        _store_crash_point("store.migrating")
                 connection.execute(f"PRAGMA user_version = {_VERSION}")
                 return
 
@@ -776,6 +963,17 @@ class Store:
                 """INSERT INTO turn_log (turn_id, namespace, session_id, started_at)
                    VALUES (?, ?, ?, ?)""", (turn_id, owner, session_id, time.time()))
             return self._chat(self._owned_chat(connection, owner, turn_id), created=True)
+
+    def has_replay(self, owner: str, session_id: str | None, idempotency_key: str) -> bool:
+        """True when ``reserve_chat`` with this key would return an existing chat (read-only)."""
+        _identifier(owner, "Owner")
+        _identifier(idempotency_key, "Idempotency key")
+        with self._transaction(write=False) as connection:
+            return connection.execute(
+                """SELECT 1 FROM chats WHERE owner = ? AND key_session = ?
+                   AND idempotency_key = ?""",
+                (owner, "" if session_id is None else session_id, idempotency_key),
+            ).fetchone() is not None
 
     def mark_chat_running(self, owner: str, turn_id: str) -> ChatReservation:
         _identifier(owner, "Owner")
@@ -1990,3 +2188,182 @@ class Store:
                 (namespace, *turns)).rowcount
         return {"session_id": session_id, "turns": turns, "scheduled_answers": answers,
                 "receipts": receipts, "events": events}
+
+    def session_turns(self, namespace: str, session_id: str, *,
+                      limit: int = 50) -> list[dict[str, Any]]:
+        """Every turn of one session in any state (oldest first, the newest ``limit``): the
+        owner's words, the stored state and, only for succeeded turns, the answer.
+        Read-only; the companion and ``sessions show`` render it."""
+        _identifier(namespace, "Namespace")
+        _identifier(session_id, "Session ID")
+        with self._transaction(write=False) as connection:
+            rows = connection.execute(
+                """SELECT c.ordinal, c.turn_id, c.state, c.user_input, c.response_json,
+                   t.started_at, t.finished_at FROM chats c LEFT JOIN turn_log t
+                   ON t.turn_id = c.turn_id WHERE c.owner = ? AND c.session_id = ?
+                   ORDER BY c.ordinal DESC LIMIT ?""",
+                (namespace, session_id, max(1, min(int(limit), 500)))).fetchall()
+        turns = []
+        for row in reversed(rows):
+            response = None if row["response_json"] is None else _decode_json(row["response_json"])
+            turns.append({"ordinal": row["ordinal"], "turn_id": row["turn_id"],
+                          "state": row["state"], "user_input": row["user_input"],
+                          "response": response["response"] if row["state"] == "succeeded"
+                          and isinstance(response, dict) else None,
+                          "started_at": row["started_at"], "finished_at": row["finished_at"]})
+        return turns
+
+    # -- operations: retention, statistics and compaction ------------------------------
+
+    @staticmethod
+    def _provenance_turns(connection: sqlite3.Connection) -> set[str]:
+        """Turns whose receipts a schedule's taint provenance reads (the conversation that
+        wrote a schedule's prompt and the turns above it): retention never prunes them."""
+        found: set[str] = set()
+        for (creator,) in connection.execute(
+                "SELECT DISTINCT created_by FROM schedules WHERE created_by LIKE 'turn:%'"):
+            turn, level = creator[5:], 0
+            while turn and turn not in found and level < 8:
+                found.add(turn)
+                row = connection.execute("SELECT turn_id FROM turn_steps WHERE kind = 'child' "
+                                         "AND step_id = ?", (turn,)).fetchone()
+                turn, level = (row[0] if row else None), level + 1
+        return found
+
+    def retention(self, *, receipts_before: float | None = None,
+                  run_events_before: float | None = None, inbox_before: float | None = None,
+                  inbox_keep: int = 20, dry_run: bool = True) -> dict[str, Any]:
+        """Records past their cutoff: finished receipts (never those of a turn in progress or
+        of a schedule's provenance), streamed run events of finished turns, and finished inbox
+        entries (each schedule keeps its newest ``inbox_keep``, at least one). ``dry_run``
+        only counts; otherwise everything chosen is deleted in one transaction."""
+        keep = max(1, int(inbox_keep))
+        report: dict[str, Any] = {}
+        with self._transaction(write=not dry_run) as connection:
+            active = {row[0] for row in connection.execute(
+                "SELECT turn_id FROM chats WHERE state IN ('reserved', 'running')")}
+            protected = self._provenance_turns(connection)
+            plans: dict[str, tuple[str, str, list]] = {}
+            if receipts_before is not None:
+                rows = connection.execute(
+                    """SELECT receipt_id, turn_id, created_at FROM receipts WHERE state <> 'started'
+                       AND created_at < ?""", (receipts_before,)).fetchall()
+                chosen = [row for row in rows if row["turn_id"] not in protected
+                          and row["turn_id"] not in active]
+                plans["receipts"] = ("receipts", "receipt_id", chosen)
+                report["receipts"] = {"cutoff": receipts_before,
+                                      "protected": len(rows) - len(chosen)}
+            if run_events_before is not None:
+                rows = connection.execute(
+                    """SELECT rowid AS id, turn_id, created_at FROM run_events
+                       WHERE created_at < ?""", (run_events_before,)).fetchall()
+                chosen = [row for row in rows if row["turn_id"] not in active]
+                plans["run_events"] = ("run_events", "rowid", chosen)
+                report["run_events"] = {"cutoff": run_events_before,
+                                        "protected": len(rows) - len(chosen)}
+            if inbox_before is not None:
+                rows = connection.execute(
+                    """SELECT occurrence_id AS id, created_at FROM (
+                         SELECT occurrence_id, state, coalesce(finished_at, claimed_at)
+                                AS created_at, ROW_NUMBER() OVER (PARTITION BY schedule_id
+                                ORDER BY claimed_at DESC) AS rank FROM occurrences)
+                       WHERE state <> 'running' AND rank > ? AND created_at < ?""",
+                    (keep, inbox_before)).fetchall()
+                plans["inbox"] = ("occurrences", "occurrence_id", rows)
+                report["inbox"] = {"cutoff": inbox_before, "keep_per_schedule": keep}
+            for name, (table, key, rows) in plans.items():
+                times = [row["created_at"] for row in rows]
+                report[name].update(count=len(rows), oldest=min(times, default=None),
+                                    newest=max(times, default=None))
+                if dry_run:
+                    continue
+                ids = [row[0] for row in rows]
+                for start in range(0, len(ids), 500):
+                    batch = ids[start:start + 500]
+                    connection.execute(f"DELETE FROM {table} WHERE {key} IN "
+                                       f"({', '.join('?' for _ in batch)})", batch)
+                report[name]["deleted"] = len(ids)
+        return report
+
+    def operations_rows(self, *, since: float | None = None, until: float | None = None,
+                        namespace: str | None = None) -> dict[str, Any]:
+        """The raw rows local statistics are computed from (turns, receipts, scheduled runs
+        and helpers in a time window), newest first and bounded."""
+        low, high = (-math.inf if since is None else since), (math.inf if until is None else until)
+        scope, parameters = ("", []) if namespace is None else (" AND c.owner = ?", [namespace])
+        with self._transaction(write=False) as connection:
+            turns = [dict(row) for row in connection.execute(
+                f"""SELECT c.turn_id, c.state, c.idempotency_key, t.started_at, t.finished_at,
+                    s.state AS journal_state, s.result_json AS journal_json
+                    FROM chats c LEFT JOIN turn_log t ON t.turn_id = c.turn_id
+                    LEFT JOIN turn_steps s ON s.step_id = 'journal_' || c.turn_id
+                    WHERE coalesce(t.started_at, 0) >= ? AND coalesce(t.started_at, 0) < ?{scope}
+                    ORDER BY c.ordinal DESC LIMIT 100000""",
+                [0 if since is None else low, high, *parameters])]
+            for row in turns:
+                journal = _decode_json(row.pop("journal_json")) if row.get("journal_json") else None
+                row["segments"] = journal.get("segments") if isinstance(journal, dict) else None
+            where = "" if namespace is None else " AND namespace = ?"
+            receipts = [dict(row) for row in connection.execute(
+                f"""SELECT tool, state, created_at, finished_at FROM receipts
+                    WHERE created_at >= ? AND created_at < ?{where}
+                    ORDER BY created_at DESC LIMIT 200000""", [low, high, *parameters])]
+            runs = []
+            for row in connection.execute(
+                    f"""SELECT schedule_id, state, reason, manual, scheduled_at, claimed_at,
+                        finished_at, late_seconds, result_json FROM occurrences
+                        WHERE claimed_at >= ? AND claimed_at < ?{where}
+                        ORDER BY claimed_at DESC LIMIT 100000""", [low, high, *parameters]):
+                item = dict(row)
+                result = _decode_json(item.pop("result_json")) if row["result_json"] else None
+                item["missed_count"] = result.get("missed_count") if isinstance(result, dict) \
+                    else None
+                runs.append(item)
+            helpers = connection.execute(
+                f"""SELECT count(*) FROM turn_steps WHERE kind = 'child' AND started_at >= ?
+                    AND started_at < ?{where}""", [low, high, *parameters]).fetchone()[0]
+        return {"turns": turns, "receipts": receipts, "runs": runs, "helpers": helpers}
+
+    def export_turns(self, namespace: str) -> list[dict[str, Any]]:
+        """Every turn of ``namespace`` in order (portable export): session, state, the owner's
+        words, the answer when it succeeded, and times. Forgotten turns are left out."""
+        _identifier(namespace, "Namespace")
+        with self._transaction(write=False) as connection:
+            rows = connection.execute(
+                """SELECT c.turn_id, c.session_id, c.state, c.user_input, c.response_json,
+                   t.started_at, t.finished_at FROM chats c LEFT JOIN turn_log t
+                   ON t.turn_id = c.turn_id WHERE c.owner = ? AND c.user_input <> ?
+                   ORDER BY c.ordinal""", (namespace, FORGOTTEN)).fetchall()
+        turns = []
+        for row in rows:
+            response = _decode_json(row["response_json"]) if row["response_json"] else None
+            turns.append({"turn_id": row["turn_id"], "session_id": row["session_id"],
+                          "state": row["state"], "user_input": row["user_input"],
+                          "response": response["response"] if isinstance(response, dict)
+                          else None, "started_at": row["started_at"],
+                          "finished_at": row["finished_at"]})
+        return turns
+
+    def table_counts(self) -> dict[str, int]:
+        with self._transaction(write=False) as connection:
+            return {table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+                    for table in ("chats", "facts", "skills", "schedules", "occurrences",
+                                  "receipts", "run_events", "turn_steps")}
+
+    def compact(self) -> dict[str, Any]:
+        """VACUUM the store (the caller holds the home exclusively), then check it."""
+        with self._lock:
+            connection = self._open_connection()
+            before = self._path.stat().st_size
+            page = connection.execute("PRAGMA page_size").fetchone()[0]
+            free = connection.execute("PRAGMA freelist_count").fetchone()[0]
+            started = time.monotonic()
+            try:
+                connection.execute("VACUUM")
+                check = connection.execute("PRAGMA quick_check").fetchone()[0]
+            except sqlite3.Error as error:
+                raise StateError(f"The store could not be compacted: {error}") from None
+            after = self._path.stat().st_size
+        return {"bytes_before": before, "bytes_after": after, "free_pages_before": free,
+                "page_size": page, "reclaimed_bytes": max(0, before - after),
+                "quick_check": check, "seconds": round(time.monotonic() - started, 3)}

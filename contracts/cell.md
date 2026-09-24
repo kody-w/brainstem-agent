@@ -52,6 +52,9 @@ Flask because it runs inside Grail's own interpreter). Tests use `unittest`.
 | `daemon.py`, `schedules.py` | the always-on daemon and durable schedules |
 | `knowledge.py`, `retrieval.py`, `session_index.py` | learned context, ranking and session search |
 | `organs/*` | tools (section 7) |
+| `health.py`, `credential_state.py` | the health model (liveness versus readiness, reasons and fixes); the credential's recorded state |
+| `hygiene.py`, `observe.py` | retention, disk floor, bounded logs, compaction; the event log, log reading and store-derived statistics |
+| `backup.py`, `release.py`, `lifecycle.py` | backup, restore and export; the release manifest, versions and zipapp; upgrade, rollback and uninstall |
 | `cli.py`, `__main__.py` | the `brainstem-agent` command; `python -m brainstem_agent fixture` |
 | `adapter.py`, `harness.py` | RAPP/1 envelope normalization; the offline M0 fixture harness |
 
@@ -69,7 +72,13 @@ Both also skip, with the reason, when no verified Grail seed is available
 state/agent.sqlite3                       Store (0600; state/ is 0700)
 state/search.sqlite3                      derived FTS5 session index (0600; rebuildable)
 state/egress.jsonl, state/mcp-pins.json   outbound request log; pinned MCP tool definitions
+state/pre-migration/*.sqlite3             copies taken before a store migration (0600)
+state/credential.json                     a rejected credential's state (never the credential)
 reach.json                                the owner's web egress policy and MCP servers
+operations.json                           the owner's retention, log and disk policy (optional)
+logs/events.jsonl                         the event log (0600, rotated by size)
+backups/<UTC time>/                       backups (manifest.json with every file's SHA-256)
+versions/<version id>/, versions/active.json   side-by-side runtime versions; the active one
 cache/grail/<commit>/rapp_brainstem/      verified source cache (read-only; BRAINSTEM_AGENT_CACHE)
 cache/venvs/<lock-sha256[:16]>-py311/     Grail worker interpreter (read-only to workers)
 workers/<worker_id>/<generation>/         private worker tree, deleted after stop
@@ -471,7 +480,9 @@ kills but stays inside its sandbox.
 CLI (`brainstem-agent`, or `python -m brainstem_agent`): `setup`, `doctor`,
 `chat MESSAGE`, `tool NAME`, `memory`, `profile`, `skills`, `sessions [search QUERY]`,
 `context MESSAGE`, `receipts`, `turns`, `processes`, `cancel`, `serve`, `status`, `stop`,
-`schedules`, `inbox`, `service`, `mcp` and `egress`; every command accepts `--json`.
+`schedules`, `inbox`, `service`, `mcp`, `egress`, and the operations commands `version`,
+`backup`, `restore`, `export`, `upgrade`, `rollback`, `uninstall`, `prune`, `compact`, `logs`
+and `stats`; every command accepts `--json`.
 `python -m brainstem_agent fixture` runs the offline M0 harness.
 
 ## 9a. Always-on cell (`daemon.py`, `schedules.py`)
@@ -518,6 +529,35 @@ CLI (`brainstem-agent`, or `python -m brainstem_agent`): `setup`, `doctor`,
   bridge with exactly the core organs (`CORE_CAPABILITIES`).
 - `service install|uninstall [--dry-run]` renders and loads a per-home LaunchAgent
   (`plistlib`, `launchctl bootstrap|bootout gui/<uid>`).
+
+## 9b. Operable cell
+
+- Health (`health.py`): every check has `id`, `kind` (`liveness` or `readiness`), `ok`,
+  `required`, `reason` and `fix`. Live: the process answers and its schedule loop runs.
+  Ready: Grail verified, worker interpreter prepared, credential usable, sandbox, store
+  schema readable, disk above the floor, warm worker, MCP servers healthy, not draining.
+  `doctor` (installation), `status --json` (`readiness`) and the daemon's `GET /v1/health`
+  report it; `GET /v1/version` and `POST /v1/drain` (finish running work, start nothing new;
+  `resume` undoes it) are the daemon's other operational routes.
+- Credential state (`credential_state.py`): a rejection classified from Grail's own errors
+  (`invalid` or `no_access`) is recorded with the credential file's identity (never its
+  value); new turns are refused before anything is written or started and the daemon starts
+  no worker until the file changes (then the new token is used without a restart) or a
+  backoff (10 minutes doubling to 6 hours) allows one probe.
+- Hygiene (`hygiene.py`): `operations.json` policy; new turns are refused below the disk
+  floor; bounded logs; `prune` (and `--dry-run`) over receipts (never a running turn's or a
+  schedule's provenance), run events, inbox entries, the egress log and pre-migration copies;
+  `compact` (VACUUM, exclusive).
+- Store safety (`state.py`): `inspect_database` and `classify_schema` read a store without
+  writing (`current`, `migrates`, `newer`, `foreign`, `unknown`); an older layout is copied
+  with the online backup API before its migration transaction; a newer one is refused
+  without a write; `backup_database` makes integrity-checked online copies.
+- Releases (`release.py`, `lifecycle.py`): `data/release-manifest.json` lists every shipped
+  file's SHA-256 and the store schemas a version reads and migrates; upgrade and rollback
+  switch between verified side-by-side versions in `versions/` (the CLI, daemon and
+  LaunchAgent follow `versions/active.json`), draining the daemon first; a rollback the store
+  no longer fits refuses unless given the pre-upgrade backup to restore. The zipapp unpacks
+  itself into `versions/` after verifying every file.
 
 ## 10. Evidence classes
 

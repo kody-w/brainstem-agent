@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0000f2">
   <title>RAPP Brainstem — local-first agent engine, with an experimental always-on runtime for macOS</title>
-  <meta name="description" content="RAPP Brainstem is a local-first AI agent engine. Brainstem Agent, its experimental always-on runtime (0.1.0, macOS only), runs the unchanged Brainstem core in the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, web and MCP. Inference is remote, through your GitHub Copilot sign-in.">
+  <meta name="description" content="RAPP Brainstem is a local-first AI agent engine. Brainstem Agent, its experimental always-on runtime (0.2.0, macOS only), runs the unchanged Brainstem core in the macOS sandbox and adds memory, schedules, skills, long tasks, helpers, web and MCP. Inference is remote, through your GitHub Copilot sign-in.">
   <link rel="canonical" href="https://kody-w.github.io/brainstem-agent/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="RAPP Brainstem">
   <meta property="og:title" content="RAPP Brainstem — now with an experimental always-on runtime for macOS">
-  <meta property="og:description" content="Install the core, then add Brainstem Agent on your Mac: the unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.1.0; inference is remote.">
+  <meta property="og:description" content="Install the core, then add Brainstem Agent on your Mac: the unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.2.0; inference is remote.">
   <meta property="og:url" content="https://kody-w.github.io/brainstem-agent/">
   <meta property="og:image" content="https://kody-w.github.io/brainstem-agent/assets/social-card.png">
   <meta property="og:image:width" content="1200">
@@ -18,7 +18,7 @@
   <meta property="og:image:alt" content="RAPP Brainstem: Give your AI a nervous system. An original branching neural diagram on cobalt blue.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="RAPP Brainstem — now with an experimental always-on runtime for macOS">
-  <meta name="twitter:description" content="The unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.1.0, macOS only; inference is remote.">
+  <meta name="twitter:description" content="The unchanged Brainstem core in the macOS sandbox, plus memory, schedules, skills, long tasks, helpers, web and MCP. Experimental 0.2.0, macOS only; inference is remote.">
   <meta name="twitter:image" content="https://kody-w.github.io/brainstem-agent/assets/social-card.png">
   <meta name="twitter:image:alt" content="RAPP Brainstem: Give your AI a nervous system. An original branching neural diagram on cobalt blue.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -65,7 +65,7 @@
           </div>
           <ul class="hero-facts" aria-label="At a glance">
             <li>macOS only</li>
-            <li>Experimental <span data-manifest="runtime.version">0.1.0</span></li>
+            <li>Experimental <span data-manifest="runtime.version">0.2.0</span></li>
             <li>Uses your Brainstem's GitHub Copilot sign-in</li>
             <li>Inference is remote</li>
             <li>Not a hosted service</li>
@@ -101,7 +101,7 @@
             <li><strong>Python 3.11 or newer.</strong> The commands use <code>python3.11</code>; Python 3.13 is verified too.</li>
             <li><strong>Git and internet access.</strong> Setup downloads the pinned core, and inference is remote.</li>
             <li><strong>A GitHub account with Copilot access.</strong> You sign in through RAPP Brainstem in step 1. The agent reuses that sign-in, so there is no API key to create.</li>
-            <li><strong>Room for experimental software.</strong> Version <span data-manifest="runtime.version">0.1.0</span>; interfaces may change. It is not a hosted service.</li>
+            <li><strong>Room for experimental software.</strong> Version <span data-manifest="runtime.version">0.2.0</span>; interfaces may change. It is not a hosted service.</li>
           </ul>
         </div>
 
@@ -158,7 +158,7 @@
 
           <li class="install-step" id="step-agent">
             <div class="step-copy">
-              <p class="step-tag">Step 2 · <span class="tag-strong">macOS only</span> · <span class="tag-strong">Experimental <span data-manifest="runtime.version">0.1.0</span></span></p>
+              <p class="step-tag">Step 2 · <span class="tag-strong">macOS only</span> · <span class="tag-strong">Experimental <span data-manifest="runtime.version">0.2.0</span></span></p>
               <h3 id="step-agent-title">Add Brainstem Agent, the always-on runtime.</h3>
               <p>Run these in Terminal on your Mac, from the folder where you want the clone. The first four lines clone this repository and install the <code>brainstem-agent</code> command in <code>.venv</code>, a virtual environment inside the clone.</p>
               <p><code>setup</code> downloads and verifies the pinned core, checking every file against its recorded hash, and builds its private environment. <code>doctor --deep</code> proves the sandbox, worker and sign-in are ready.</p>
@@ -205,16 +205,43 @@ python3.11 -m venv .venv
           </figure>
         </div>
 
+        <div class="install-step" id="everyday">
+          <div class="step-copy">
+            <p class="step-tag">Then · every day</p>
+            <h3 id="everyday-title">Talk to it. Back it up.</h3>
+            <p>Still in the <code>brainstem-agent</code> folder, with the daemon from <code>serve --detach</code> running:</p>
+            <ul class="explain-list">
+              <li><code>open</code> prints a one-time sign-in link for the web companion, which the daemon serves to this Mac only, on <code>127.0.0.1</code>. Open the link in your browser yourself; nothing opens a browser for you. Each link works once, in one tab.</li>
+              <li><code>backup --output backups</code> writes a verified snapshot into <code>backups</code>, a new folder here, even while the daemon runs; the folder must be new or empty. Backups are local and unencrypted, and leave out workspace files.</li>
+              <li><code>version</code> reports the version and the pinned core.</li>
+              <li>The last line, <code>brainstem-agent</code> on its own, opens the interactive terminal session: answers stream as they are written. Type <code>/help</code> for the slash commands; Ctrl-C cancels the running turn and keeps the session; Ctrl-D leaves it. It comes last, so you can paste the whole block: the other three lines run first.</li>
+            </ul>
+            <p>For <code>restore</code>, <code>export</code>, <code>upgrade</code> and <code>rollback</code>, see <a href="https://github.com/kody-w/brainstem-agent/blob/main/runtime/README.md#operating-the-cell-health-logs-backups-upgrades-removal">Operating the cell <span aria-hidden="true">↗</span></a> in the runtime documentation.</p>
+          </div>
+          <figure class="command-block" aria-labelledby="everyday-label">
+            <div class="command-head">
+              <p id="everyday-label" class="shell-label">macOS / Terminal · every day</p>
+              <button class="copy-button" type="button" data-copy="command-everyday" data-copy-status="copy-status-everyday" aria-describedby="everyday-label" hidden>Copy commands</button>
+            </div>
+            <pre tabindex="0" aria-label="Brainstem Agent everyday commands"><code id="command-everyday">.venv/bin/brainstem-agent open
+.venv/bin/brainstem-agent backup --output backups
+.venv/bin/brainstem-agent version
+.venv/bin/brainstem-agent</code></pre>
+            <p id="copy-status-everyday" class="copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          </figure>
+        </div>
+
         <div class="install-help">
           <div class="doctor" id="doctor">
             <p class="step-tag">What it checks</p>
             <h3 id="doctor-title">Inside <code>doctor --deep</code>.</h3>
-            <p><code>doctor</code> runs the first four checks. <code>--deep</code> adds a real probe. If a check fails, doctor says which one and why.</p>
+            <p><code>doctor</code> runs the first five checks. <code>--deep</code> adds a real probe. If a check fails, doctor says which one and why.</p>
             <ol class="check-list">
               <li><strong>Core source.</strong> Every tracked file of the pinned core (Grail <span data-manifest="runtime.grail.version">0.6.16</span>) matches its recorded hash.</li>
               <li><strong>Private environment.</strong> The core worker's own Python environment is installed from a hash lock.</li>
               <li><strong>Sign-in.</strong> Your RAPP Brainstem's GitHub Copilot sign-in is found. Its value is never shown.</li>
               <li><strong>Sandbox.</strong> <code>/usr/bin/sandbox-exec</code> works.</li>
+              <li><strong>Disk and store.</strong> There is enough free disk space, and the agent's store, once created, is one this version can read.</li>
               <li><strong>Deep probe.</strong> A real core worker starts in the sandbox and proves, from inside, that it cannot read your home folder, your sign-in or the agent's state, cannot change the core's files or write outside its own, and can reach no local service except its own broker. Tools answer only to a valid grant, the core's files verify before and after, and the worker's processes are gone once it stops.</li>
             </ol>
           </div>
@@ -252,7 +279,7 @@ python3.11 -m venv .venv
             <p class="step-tag">When you are done</p>
             <h3 id="remove-title">Stop and remove it.</h3>
             <p>From the <code>brainstem-agent</code> folder, <code>stop</code> ends the daemon and confirms its workers are gone. <code>service uninstall</code> removes the login LaunchAgent if you added one with <code>service install</code>.</p>
-            <p>To remove it completely, delete the <code>brainstem-agent</code> folder you cloned, including its <code>.venv</code>, and the runtime's home, <code>~/.brainstem-agent</code>. The home holds everything the agent saved: the files in its default workspace, state, memory, skills, schedules, conversations and its verified copy of the core. Your RAPP Brainstem in <code>~/.brainstem</code> is not touched.</p>
+            <p>To remove it completely, delete the <code>brainstem-agent</code> folder you cloned, including its <code>.venv</code> and any <code>backups</code> folder you wrote there (move a backup out first to keep it), and the runtime's home, <code>~/.brainstem-agent</code>. The home holds everything the agent saved: the files in its default workspace, state, memory, skills, schedules, conversations and its verified copy of the core. Your RAPP Brainstem in <code>~/.brainstem</code> is not touched.</p>
           </div>
           <figure class="command-block" aria-labelledby="remove-label">
             <div class="command-head">
@@ -277,7 +304,7 @@ python3.11 -m venv .venv
         <div class="section-heading">
           <p class="eyebrow">02 / WHAT WORKS TODAY</p>
           <h2 id="capabilities-title">Six things an agent needs.<br>Each labelled honestly.</h2>
-          <p>Every card carries its status in Brainstem Agent <span data-manifest="runtime.version">0.1.0</span> and its main limit. The same statuses are published as <a href="assets/capabilities.json">machine-readable JSON</a>.</p>
+          <p>Every card carries its status in Brainstem Agent <span data-manifest="runtime.version">0.2.0</span> and its main limit. The same statuses are published as <a href="assets/capabilities.json">machine-readable JSON</a>.</p>
         </div>
         <ul class="status-legend" aria-label="What the status labels mean">
           <li><span class="status-key" data-legend="available">Available (experimental)</span> Works today; interfaces may change.</li>
@@ -349,7 +376,7 @@ python3.11 -m venv .venv
               <h3 class="cap-title">Connect</h3>
               <span class="status" data-status="not-yet">Not yet</span>
             </div>
-            <p class="cap-summary">Messaging apps and email are not connected yet; today you use the terminal, and tools connect through MCP.</p>
+            <p class="cap-summary">Messaging apps and email are not connected yet; today you use the terminal or the web companion on this Mac, and tools connect through MCP.</p>
             <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">No messaging channels.</span></p>
           </li>
           <li class="cap-card" data-capability="remember">
@@ -422,14 +449,15 @@ python3.11 -m venv .venv
               <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">You add and trust servers yourself.</span></p>
             </li>
             <li class="more-item" data-capability="receipts">
-              <div class="more-head"><h4 class="cap-title">Receipts and recovery</h4><span class="status" data-status="partial">Partial</span></div>
-              <p class="cap-summary">Every tool call gets a receipt (succeeded, failed or uncertain); a repeated request with an idempotency key replays without a new model call; interrupted work is recovered or marked uncertain.</p>
-              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Backup and restore, upgrade and rollback, and credential rotation are not there yet.</span></p>
+              <div class="more-head"><h4 class="cap-title">Receipts and recovery</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary">Every tool call gets a receipt (succeeded, failed or uncertain); repeated requests replay without a new model call; interrupted work is recovered or marked uncertain; <code>backup</code> writes a verified snapshot while the daemon runs and <code>restore</code> checks every digest before writing; <code>export</code> writes skills, memory, profile and sessions in portable formats; <code>upgrade</code> installs a local release side by side and switches back by itself if it does not come up, and <code>rollback</code> returns to the previous version; a rejected sign-in is an explicit state (turns refused, no retries), and signing in again is picked up without a restart.</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Backups are local, unencrypted and started by you, and leave out workspace files; upgrades only from a local checkout, zipapp or wheel (nothing is downloaded); a revoked sign-in can keep working until the core's cached Copilot token expires (about 25 minutes).</span></p>
             </li>
             <li class="more-item" data-capability="companion">
-              <div class="more-head"><h4 class="cap-title">Terminal session and web companion</h4><span class="status" data-status="in-development">In development</span></div>
-              <p class="cap-summary">An interactive terminal session and an owner-only local web companion are being built on the same engine.</p>
-              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">Not released; today you use the commands.</span></p>
+              <div class="more-head"><h4 class="cap-title">Terminal session and web companion</h4><span class="status" data-status="available">Available (experimental)</span></div>
+              <p class="cap-summary"><code>brainstem-agent</code> on its own opens an interactive terminal session (streamed answers, slash commands, Ctrl-C cancels the turn and keeps the session); <code>open</code> prints a one-time link to an owner-only web companion served on <code>127.0.0.1</code> (chat, sessions, schedules and inbox, skill review, memory and profile, MCP and the outbound request log).</p>
+              <p class="cap-limit"><span class="cap-limit-label">Limit</span> <span class="cap-limit-text">This Mac only; each sign-in link works once, in one tab; the terminal is a line session, not a full-screen interface.</span></p>
+              <a class="cap-run-link" href="#everyday">See the commands <span aria-hidden="true">↑</span></a>
             </li>
             <li class="more-item" data-capability="browser-media">
               <div class="more-head"><h4 class="cap-title">Browser, images and voice</h4><span class="status" data-status="not-yet">Not yet</span></div>
@@ -552,11 +580,11 @@ Both files were created in parallel by the helpers as requested.</blockquote></d
           <div class="limits-col">
             <h3>Know this</h3>
             <ul>
-              <li><strong>Experimental, version <span data-manifest="runtime.version">0.1.0</span>.</strong> Interfaces may change.</li>
+              <li><strong>Experimental, version <span data-manifest="runtime.version">0.2.0</span>.</strong> Interfaces may change.</li>
               <li><strong>Inference is remote.</strong> Prompts, conversation context and tool results used for inference leave your Mac. Web tools contact the sites you ask about.</li>
               <li><strong>Work pauses while the Mac sleeps.</strong> Schedules run only while the daemon is running.</li>
               <li><strong>Not a hosted service.</strong> It runs on this Mac only; there is no cloud or remote deployment yet.</li>
-              <li><strong>Not yet:</strong> messaging channels, cloud deployment, browser automation, images and voice.</li>
+              <li><strong>Not yet:</strong> messaging channels, cloud or remote hosting, browser automation, images and voice, and encrypted, scheduled or off-machine backups.</li>
               <li><strong>The core stays unchanged.</strong> Grail is never modified or redistributed; setup downloads the pinned public source and verifies every file.</li>
             </ul>
           </div>
@@ -680,7 +708,7 @@ Both files were created in parallel by the helpers as requested.</blockquote></d
         <a href="https://github.com/kody-w/rapp-installer">Core <span aria-hidden="true">↗</span></a>
         <a href="https://github.com/kody-w/rapp-installer/issues">Core issues <span aria-hidden="true">↗</span></a>
       </div>
-      <p class="footer-note">RAPP Brainstem · Brainstem Agent <span data-manifest="runtime.version">0.1.0</span> is an experimental runtime for macOS, not a hosted service.</p>
+      <p class="footer-note">RAPP Brainstem · Brainstem Agent <span data-manifest="runtime.version">0.2.0</span> is an experimental runtime for macOS, not a hosted service.</p>
     </div>
   </footer>
 </body>

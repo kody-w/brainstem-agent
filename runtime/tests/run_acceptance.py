@@ -1,6 +1,6 @@
 """Run the acceptance suite (Cell v1 A1-A11, always-on cell B1-B12, learning cell C1-C12,
-long-horizon cell D1-D12, reaching cell E1-E12) and write sanitized, traceable evidence
-(A11, B12, C12, D12, E12).
+long-horizon cell D1-D12, reaching cell E1-E12, companion surfaces G1-G12, operable cell
+H1-H12) and write sanitized, traceable evidence (A11, B12, C12, D12, E12, G12, H12).
 
     PYTHONPATH=runtime python runtime/tests/run_acceptance.py [--real-core] [--live] \
         [--python-matrix /path/to/python3.13] [--label NAME] --output evidence.json
@@ -38,6 +38,14 @@ LONG_HORIZON = ("test_cell_longturn", "test_cell_delegation", "test_cell_program
                 "test_cell_durability", "test_real_longturn", "test_live_longturn",
                 "test_cell_longturn_hardening")
 REACHING = ("test_cell_reach", "test_real_reach", "test_live_reach", "test_cell_reach_hardening")
+COMPANION = ("test_companion_security", "test_companion_api", "test_companion_repl",
+             "test_companion_browser", "test_live_companion")
+OPERABLE = ("test_cell_operable_release", "test_cell_operable_health",
+            "test_cell_operable_credential", "test_cell_operable_resources",
+            "test_cell_operable_observability", "test_cell_operable_backup",
+            "test_cell_operable_migration", "test_cell_operable_upgrade",
+            "test_cell_operable_uninstall", "test_cell_operable_hardening",
+            "test_real_operable", "test_live_operable")
 CRITERIA = {
     "A1": ("doctor", "real-core"),
     "A2": ("live tool turn", "live"),
@@ -98,6 +106,31 @@ CRITERIA = {
     "E10": ("parity", "live"),
     "E11": ("regression on 3.11 and 3.13", "unit"),
     "E12": ("sanitized evidence with live transcripts and the outbound request log", "unit"),
+    "G1": ("interactive terminal", "unit"),
+    "G2": ("web companion", "unit"),
+    "G3": ("mirrors and route parity", "unit"),
+    "G4": ("owner-only security", "unit"),
+    "G5": ("honest states", "unit"),
+    "G6": ("accessibility and layout", "unit"),
+    "G7": ("speed and size", "unit"),
+    "G8": ("same-state parity (live)", "live"),
+    "G9": ("browser end-to-end (live)", "live"),
+    "G10": ("no new runtime dependencies", "unit"),
+    "G11": ("regression on 3.11 and 3.13", "unit"),
+    "G12": ("sanitized evidence with axe, size, timing and live transcripts", "unit"),
+    "H1": ("install into a fresh virtual environment, online and offline", "real-core"),
+    "H2": ("version and release manifest", "unit"),
+    "H3": ("backup, restore and export", "real-core"),
+    "H4": ("migration safety", "unit"),
+    "H5": ("upgrade and rollback", "real-core"),
+    "H6": ("uninstall", "unit"),
+    "H7": ("liveness versus readiness", "real-core"),
+    "H8": ("credential lifecycle", "live"),
+    "H9": ("resource hygiene", "unit"),
+    "H10": ("local observability", "unit"),
+    "H11": ("regression on 3.11 and 3.13", "unit"),
+    "H12": ("sanitized evidence: install transcript, backup round trip, fault-injected "
+            "migration, live turn after restore", "live"),
 }
 RANK = {"unit": 0, "real-core": 1, "live": 2}
 
@@ -208,11 +241,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pattern", default="test*.py")
     parser.add_argument("--label", default="local",
                         help="a free-form name for this run, recorded in the evidence")
-    parser.add_argument("--only", nargs="*", default=[],
+    # Repeated flags accumulate (``--only a --only b`` runs both), like one flag with two values.
+    parser.add_argument("--only", nargs="+", action="extend", default=[],
                         help="test name patterns (unittest -k), to rerun single tests")
-    parser.add_argument("--exclude", nargs="*", default=[],
+    parser.add_argument("--exclude", nargs="+", action="extend", default=[],
                         help="test modules to leave out (their records can be --merge'd)")
-    parser.add_argument("--merge", nargs="*", type=Path, default=[],
+    parser.add_argument("--merge", nargs="+", action="extend", type=Path, default=[],
                         help="evidence files of the same commit whose test records and "
                              "metrics are added before criteria are computed")
     parser.add_argument("--output", type=Path, required=True)
@@ -356,6 +390,25 @@ def main() -> int:
         name for name in names if name.startswith("e") and name.endswith("_transcript"))
     criteria["E12"]["egress_logs_recorded"] = sorted(
         name for name in names if name.startswith("e") and name.endswith("_egress"))
+    before6 = [r for r in records if r["module"] not in COMPANION and r["outcome"] != "skipped"]
+    criteria["G11"]["pre_companion_tests_ran"] = len(before6)
+    criteria["G11"]["pre_companion_passed"] = sum(r["outcome"] == "passed" for r in before6)
+    if matrix:
+        criteria["G11"]["matrix"] = matrix
+    criteria["G11"]["pass"] = (criteria["G11"]["pass"] and all(m["passed"] for m in matrix)
+                               and criteria["G11"]["pre_companion_passed"] == len(before6))
+    criteria["G12"]["metrics_recorded"] = sorted(name for name in names if name.startswith("g"))
+    before7 = [r for r in records if r["module"] not in OPERABLE and r["outcome"] != "skipped"]
+    criteria["H11"]["pre_operable_tests_ran"] = len(before7)
+    criteria["H11"]["pre_operable_passed"] = sum(r["outcome"] == "passed" for r in before7)
+    if matrix:
+        criteria["H11"]["matrix"] = matrix
+    criteria["H11"]["pass"] = (criteria["H11"]["pass"] and all(m["passed"] for m in matrix)
+                               and criteria["H11"]["pre_operable_passed"] == len(before7))
+    wanted = ("h1_install_transcript", "h3_backup_restore", "h4_fault_injected_migration",
+              "h12_live_turn_after_restore")
+    criteria["H12"]["evidence_recorded"] = sorted(name for name in names if name in wanted)
+    criteria["H12"]["pass"] = criteria["H12"]["pass"] and all(name in names for name in wanted)
     criteria["C12"]["transcripts_recorded"] = sorted({m["name"] for m in metrics
                                                       if m["name"].endswith("_transcript")})
     criteria["C12"]["retrieval_eval_recorded"] = any(m["name"] == "retrieval_eval"

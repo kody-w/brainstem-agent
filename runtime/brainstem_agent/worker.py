@@ -41,6 +41,7 @@ SOUL_FILE = PACKAGE / "data" / "soul.md"
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 _SYSTEM_DENIED = ("/Users", "/Volumes", "/private/var/folders", "/private/tmp")
 _TOKEN_SHAPES = re.compile(r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]+")
+LOG_MAX_BYTES = 4 << 20
 
 
 class WorkerError(RuntimeError):
@@ -243,14 +244,28 @@ class GrailWorker:
         return _TOKEN_SHAPES.sub(r"\1[REDACTED]", text)
 
     def _copy_log(self) -> None:
-        try:
+        """Copy the worker's output into its log (redacted), rotating once past
+        ``LOG_MAX_BYTES`` so a long-lived warm worker's log stays bounded."""
+        def open_log():
             descriptor = os.open(self.log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND
                                  | os.O_NOFOLLOW, 0o600)
-            with os.fdopen(descriptor, "w", encoding="utf-8") as log:
-                for raw in iter(self._process.stdout.readline, b""):
-                    log.write(self._redact(raw.decode("utf-8", "replace")))
-                    log.flush()
+            return os.fdopen(descriptor, "w", encoding="utf-8")
+
+        log, written = None, 0
+        try:
+            log = open_log()
+            for raw in iter(self._process.stdout.readline, b""):
+                line = self._redact(raw.decode("utf-8", "replace"))
+                if written + len(line) > LOG_MAX_BYTES:
+                    log.close()
+                    os.replace(self.log_path, self.log_path.with_name(self.log_path.name + ".1"))
+                    log, written = open_log(), 0
+                log.write(line)
+                log.flush()
+                written += len(line)
         finally:
+            if log is not None:
+                log.close()
             self._pumped.set()
 
     def log_tail(self, lines: int = 3) -> str:

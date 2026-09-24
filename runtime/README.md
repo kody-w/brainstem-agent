@@ -1,4 +1,4 @@
-# Brainstem Agent runtime (experimental, 0.1.0)
+# Brainstem Agent runtime (experimental, 0.2.0)
 
 Brainstem Agent is a cell that captures **Brainstem Grail** unchanged as its
 mitochondrion: pinned, byte-verified Grail source (hashes only are shipped in
@@ -10,6 +10,9 @@ processes, skills, schedules, helpers, web and MCP). Grail is extended only
 through its supported seams: one bridge agent file in a bridge-only
 `AGENTS_PATH`, `SOUL_PATH`, environment variables and HTTP. macOS only;
 qualified on Apple silicon (arm64) with `/usr/bin/sandbox-exec`, Python 3.11 and 3.13.
+People use it through an interactive terminal session and an owner-only web companion
+([Companion surfaces](#companion-surfaces-interactive-terminal-and-owner-only-web-companion));
+agents use the same engine through `--json` and the daemon's documented routes.
 
 ## Install
 
@@ -29,8 +32,34 @@ the sandbox, worker and sign-in are ready. The installed command `brainstem-agen
 `PYTHONPATH=runtime python3.11 -m brainstem_agent ...` (from the repository root, no
 install) take the same arguments (only the offline `fixture` command needs the source
 form); the examples below use the source form. `pip install ./runtime` fetches its build
-backend (setuptools) from PyPI; offline, a Python 3.11 venv (which includes setuptools) can
-use `.venv/bin/pip install --no-build-isolation ./runtime`.
+backend (setuptools) from PyPI.
+
+**Offline install.** Two paths need no network for the runtime itself. With Python 3.11,
+pip can build the package with the venv's own setuptools, but only when that setuptools is
+70.1 or newer, or the `wheel` package is installed in the venv (Homebrew's 3.11 venvs
+qualify; the python.org 3.11 installers bundle an older setuptools, and pip then stops with
+"invalid command 'bdist_wheel'"). `pip show setuptools` prints the venv's version, offline:
+
+```sh
+python3.11 -m venv .venv
+.venv/bin/python -m pip show setuptools
+.venv/bin/pip install --no-index --no-build-isolation ./runtime
+```
+
+Otherwise, and with Python 3.12 or newer (their venvs have no setuptools), the single-file
+zipapp is the offline path; it works with any Python 3.11 or newer. Build it once from a
+checkout, copy the one file, and run it with any interpreter; on first run it checks every
+file against its release manifest and unpacks itself into `$BRAINSTEM_AGENT_HOME/versions/`:
+
+```sh
+PYTHONPATH=runtime python3.11 -m brainstem_agent.release --zipapp brainstem-agent.pyz
+python3.13 brainstem-agent.pyz setup
+python3.13 brainstem-agent.pyz doctor
+```
+
+`setup` still needs the pinned core (downloaded from GitHub, or a verified local copy named by
+`BRAINSTEM_AGENT_GRAIL_SEED`) and the worker's hash-locked packages (from PyPI, or pip's local
+cache).
 
 ## Quick start (headless; every command accepts `--json`)
 
@@ -572,6 +601,159 @@ worker, shell, scripts and processes can neither read nor write the home):
   MCP tools too. Nothing in any result changes a grant: tools not granted are neither
   advertised nor callable.
 
+## Companion surfaces (interactive terminal and owner-only web companion)
+
+Two surfaces for people, both mirrors of the same engine: every action either one takes is a
+documented daemon route that the CLI reaches too (the table below), so nothing exists only
+in a UI. Threat model, hostile tests and contract:
+[`contracts/companion.md`](../contracts/companion.md).
+
+### Terminal session
+
+```sh
+python3.11 -m brainstem_agent
+python3.11 -m brainstem_agent repl --session <session_id>
+python3.11 -m brainstem_agent repl --json
+```
+
+The first line opens the interactive terminal (the installed command alone, `brainstem-agent`,
+does the same; so does `repl`). `--session` continues an earlier session; `--json` is the line
+protocol for agents (below).
+
+- **Routing.** With a daemon running, each turn goes through it (`POST /v1/requests` and its
+  event stream, exactly what the companion uses); without one, turns run in-process on a
+  host the session keeps, so the worker stays warm between turns.
+- **Output.** The answer streams as Grail writes it; tools, steps and helpers print one
+  progress line each on stderr; a final line gives the engine's state and receipts, and the
+  engine's recorded answer is repeated when it differs from what streamed.
+- **Keys.** Ctrl-C cancels the running turn (grant revoked, worker group stopped, as in
+  `chat`) and keeps the session; Ctrl-D or `/exit` quits.
+- **Slash commands.** `/help`, `/new`, `/sessions`, `/resume <id>`, `/history`, `/skills`,
+  `/memory`, `/schedules`, `/inbox`, `/status`, `/stop` (cancels whatever turn the daemon
+  runs, from any surface) and `/exit`.
+- **History.** Typed lines are kept in `<home>/state/repl_history` (0600, never written through
+  a symlink) and offered by the up arrow. A credential-shaped line (a token, a key, a
+  `password = ...` assignment) is kept in neither: not in the file and not in the terminal's
+  own history; the terminal says so.
+- **Untrusted text** (answers, tool output, names) is printed with control and C1
+  characters, line separators and every Unicode bidi control character (embeddings,
+  overrides, isolates and marks) shown as visible escapes (`\x1b`, `\u202e`), so nothing a
+  model or a web page writes can drive the terminal or reorder what you read.
+- **Streamed text is redacted** the way the recorded answer is, and for every credential
+  shape besides, on a rolling buffer: a word appears once it has ended (after a secret's
+  name, once its value has), so a secret split across Grail's fragments never shows, not
+  even in part.
+
+The JSON line protocol (`repl --json`, `brainstem-agent-repl/1`) reads one line per input:
+plain text (as typed) or a JSON object, `{"op": "chat", "text": "..."}`,
+`{"op": "command", "text": "/sessions"}`, `{"op": "cancel"}` (read while a turn runs) or
+`{"op": "exit"}`. It writes one JSON object per line: `ready` (protocol, mode `daemon` or
+`in-process`, session, commands), `delta` (answer text), `event` (a progress event),
+`result` (the full turn result, as `chat --json` prints it), `command` (a slash command's
+data), `notice`, `error` and finally `bye`.
+
+### Web companion
+
+```sh
+python3.11 -m brainstem_agent serve --detach
+python3.11 -m brainstem_agent open
+python3.11 -m brainstem_agent open --sign-out-all
+```
+
+The daemon serves the companion on its own `127.0.0.1` port. `open` prints a one-time
+sign-in link, `http://127.0.0.1:<port>/login#<token>`: open it in a browser on this Mac; it
+works once, for two minutes, in one tab. `open` never launches a browser itself (a launched
+browser's arguments are visible to other users). `--sign-out-all` ends every companion
+session and unused link.
+
+- **Sign-in.** The token (256 random bits, held only as a digest in daemon memory) rides in
+  the URL fragment, so it is never sent in a request line, a Referer or a log. The login page
+  removes it from the address bar and the history entry, exchanges it by `POST`, and receives
+  an `HttpOnly; SameSite=Strict` session cookie (named per port) plus a CSRF secret for that
+  tab only (`sessionStorage`). Every companion request needs both, because cookies are shared
+  by every port of 127.0.0.1; every state change also needs the exact `Origin` and a JSON
+  body; fetch metadata must say same-origin; the Host must be exactly `127.0.0.1:<port>`.
+- **Sessions** live in daemon memory: idle 1 h, absolute 12 h, at most 8; a restart ends them.
+  The daemon comes back on its previous port (`run/port.json`) when nothing else listens
+  there, so an open tab keeps its address and says **Daemon restarted** (sign in again with a
+  new link) rather than only **Daemon unreachable**; a tab that was signed out says that.
+- **Views.** Chat (streamed answers with steps, helpers, receipts and Stop), sessions (resume),
+  schedules and inbox (pause, resume, remove), skills (show, approve, reject a pending
+  version, disable, enable), memory and profile (edit, forget), MCP servers and tools, the
+  egress log and status. The page is plain HTML, CSS and JavaScript shipped in the package
+  (`ui/`, about 47 KB): no build step and no external requests.
+- **Readiness.** The Status view (and the connection line) shows live versus ready from
+  `GET /v1/health`, read-only: every check with its reason and, when it fails, its fix. The
+  CLI prints the same report with `api GET /v1/health`, and `status --json` carries it as
+  `readiness`.
+- **Honest states.** A turn is `queued` (waiting for the worker), `running`, `streaming (not
+  final)`, then exactly what the store records: `succeeded`, `partial`, `uncertain`, `failed`
+  or `cancelled`; a turn the store records as running that no live request runs is `stale`.
+  Each has a text label, its own border and its own symbol, in the sessions list too (it
+  labels each session by its last turn). Streamed text of a turn that did not succeed stays
+  under "Streamed text (not recorded as an answer)".
+- **Untrusted text** is placed with `createElement` and `textContent` only (no links, images
+  or HTML parsing), and bidi control characters are shown as escapes, as in the terminal.
+- **Hardening** on every response (assets, JSON, event streams, refusals, standard-library
+  errors): `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self';
+  img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors
+  'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'`,
+  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+  COOP and CORP `same-origin`, `Cache-Control: no-store`; no CORS grant and no redirect ever;
+  JSON escapes `<`, `>` and `&`; Trusted Types make any HTML sink throw.
+
+### Every route, from the CLI
+
+```sh
+python3.11 -m brainstem_agent api GET /v1/api
+python3.11 -m brainstem_agent sessions show <session_id> --json
+python3.11 -m brainstem_agent memory edit <fact_id> --scope workspace --text "a corrected fact"
+python3.11 -m brainstem_agent memory forget <fact_id> --scope profile
+```
+
+`api METHOD PATH` calls any documented route as the owner (`--body` takes a JSON object for a
+`POST`; an event stream prints one JSON line per event). `GET /v1/api` returns this table;
+the companion may call only the rows marked yes:
+
+| Route | Companion | What | CLI |
+|---|---|---|---|
+| `GET /v1/api` | yes | This route table. | `brainstem-agent api GET /v1/api` |
+| `GET /v1/status` | yes | Health, workers, active turn, schedules, MCP servers, last errors, companion. | `brainstem-agent status --json` |
+| `GET /v1/health` | yes | Liveness versus readiness: every check with its reason and fix. | `brainstem-agent api GET /v1/health` (status --json carries the same report as readiness) |
+| `GET /v1/version` | no | The running version, Grail pin, store schema, digests and capabilities. | `brainstem-agent api GET /v1/version` (version --json shows it next to the installed release) |
+| `POST /v1/turn` | no | Run one turn and wait for its full result. | `brainstem-agent chat <message> --json` |
+| `POST /chat` | no | RAPP/1: exactly response, agent_logs, session_id. | `brainstem-agent api POST /chat --body <json>` |
+| `POST /v1/tool` | no | Invoke one cell tool directly as the owner. | `brainstem-agent tool <name> --arguments <json>` |
+| `POST /v1/cancel` | yes | Cancel a request ({request_id}) or the active turn ({active: true}). | `brainstem-agent cancel` (the active turn; Ctrl-C cancels a running chat or terminal turn) |
+| `POST /v1/progress` | no | Progress events of a /v1/turn request. | `brainstem-agent chat <message>` (progress lines on stderr) |
+| `POST /v1/wake` | no | Wake the schedule loop. | `brainstem-agent api POST /v1/wake` (every schedules command that changes a schedule wakes it too) |
+| `POST /v1/drain` | no | Finish the running work and start nothing new ({timeout}); {resume: true} undoes it. | `brainstem-agent stop --drain` (upgrade and rollback drain the daemon first) |
+| `POST /v1/stop` | no | Stop the daemon and its workers. | `brainstem-agent stop` |
+| `POST /v1/requests` | yes | Start a turn ({message, session_id?}); 202 with request_id, state queued. | `brainstem-agent api POST /v1/requests --body <json>` (the terminal sends each message this way) |
+| `GET /v1/requests/{request_id}` | yes | A started turn's state and, once finished, its result. | `brainstem-agent api GET /v1/requests/<request_id>` |
+| `GET /v1/requests/{request_id}/events` | yes | text/event-stream of a started turn (?after=SEQ): queued, running, progress, answer.delta, request.finished. | `brainstem-agent api GET /v1/requests/<request_id>/events` (the terminal streams it; one JSON line per event) |
+| `GET /v1/sessions` | yes | Sessions of the daemon's workspace, each with its last turn's label. | `brainstem-agent sessions list --json` |
+| `GET /v1/sessions/{session_id}` | yes | Every turn of a session with its state label, answer and receipts. | `brainstem-agent sessions show <session_id> --json` |
+| `GET /v1/journal/{turn_id}` | yes | A turn's journal: segments, helpers, receipts. | `brainstem-agent turns show <turn_id> --json` |
+| `GET /v1/receipts` | yes | Receipts (?turn=TURN_ID: that turn and its helpers). | `brainstem-agent receipts --json` |
+| `GET /v1/schedules` | yes | Schedules of the workspace. | `brainstem-agent schedules list --json` |
+| `POST /v1/schedules/{schedule_id}/{action}` | yes | pause, resume or remove a schedule. | `brainstem-agent schedules pause <schedule_id>` (also resume and remove) |
+| `GET /v1/inbox` | yes | Results of scheduled runs, newest first. | `brainstem-agent inbox --json` |
+| `GET /v1/skills` | yes | Skills of the workspace and profile. | `brainstem-agent skills list --json` |
+| `GET /v1/skills/{name}` | yes | One skill (?version=N) with its steps and history. | `brainstem-agent skills show <name> --json` (--version picks an older version) |
+| `POST /v1/skills/{name}/{action}` | yes | approve ({version}), reject, disable or enable a skill. | `brainstem-agent skills approve <name>` (also reject, disable and enable; --version approves that version) |
+| `GET /v1/memory` | yes | Workspace and profile facts (?scope=all, workspace or profile). | `brainstem-agent memory --json` |
+| `POST /v1/memory/edit` | yes | Edit a fact ({scope, fact_id, text}). | `brainstem-agent memory edit <fact_id> --scope workspace --text <text>` (--scope profile for a profile fact) |
+| `POST /v1/memory/forget` | yes | Forget a fact ({scope, fact_id}). | `brainstem-agent memory forget <fact_id> --scope workspace` (--scope profile for a profile fact) |
+| `GET /v1/tools` | yes | The cell's tools: capability, effect, whether a chat turn holds it. | `brainstem-agent api GET /v1/tools` |
+| `GET /v1/mcp` | yes | Configured MCP servers and their state. | `brainstem-agent api GET /v1/mcp` (mcp list and mcp status show the same servers) |
+| `GET /v1/egress` | yes | The outbound request log (?limit=N, newest last). | `brainstem-agent api GET /v1/egress` (egress log prints the same log) |
+| `POST /v1/companion/login` | no | Mint a one-time companion sign-in link (120 s). | `brainstem-agent open` |
+| `POST /v1/companion/revoke` | no | End every companion session and pending link. | `brainstem-agent open --sign-out-all` |
+| `POST /v1/companion/session` | no | Exchange a one-time token for a session (the login page; no other credential). | `brainstem-agent open` (prints the link whose token the login page exchanges) |
+| `GET /v1/companion/session` | yes | Whether this companion session is signed in. | `brainstem-agent api GET /v1/companion/session` |
+| `POST /v1/companion/logout` | yes | End this companion session. | `brainstem-agent open --sign-out-all` (ends every companion session, this one included) |
+
 ## Process lifecycle
 
 - **Lifeline.** Each host records every process group it starts (Grail worker
@@ -618,8 +800,8 @@ worker, shell, scripts and processes can neither read nor write the home):
   no reads of the owner's home or the cell's state. The reaper also never kills
   a leftover whose program changed by `exec` (for example `exec sleep`); the
   watchdog, which checks the exact start time only, does.
-- **Limit: reverse DNS.** The cell's own servers (broker, daemon) bind without asking DNS
-  about their address, but the unchanged Grail's web server (werkzeug's, a stdlib
+- **Limit: reverse DNS.** The cell's own servers (broker, daemon and the companion it serves)
+  bind without asking DNS about their address, but the unchanged Grail's web server (werkzeug's, a stdlib
   `HTTPServer`) looks up the name of `127.0.0.1` every time a worker starts. macOS normally
   answers that at once from the `127.0.0.1 localhost` line in `/etc/hosts`; on a Mac whose
   reverse lookup of `127.0.0.1` is slow, every worker start waits for it.
@@ -628,12 +810,183 @@ Environment: `BRAINSTEM_AGENT_HOME` (default `~/.brainstem-agent`, owner-only),
 `BRAINSTEM_AGENT_CACHE` (default `$BRAINSTEM_AGENT_HOME/cache`),
 `BRAINSTEM_AGENT_WORKSPACE`, `BRAINSTEM_AGENT_MODEL` (default `auto`),
 `BRAINSTEM_AGENT_GRAIL_SEED` (verified local seed instead of codeload),
-`BRAINSTEM_AGENT_GITHUB_TOKEN_FILE` (explicit credential; no fallback) and
+`BRAINSTEM_AGENT_GITHUB_TOKEN_FILE` (explicit credential; no fallback),
+`BRAINSTEM_AGENT_MIN_FREE_MB` (the disk floor), `BRAINSTEM_AGENT_NO_REDIRECT` (run a command
+as installed, not in the home's active version), `$BRAINSTEM_AGENT_HOME/operations.json`
+(retention, logs and disk policy, see Operating the cell) and
 `$BRAINSTEM_AGENT_HOME/reach.json` (web egress policy and MCP servers, see above),
 `BRAINSTEM_HOME` (installed brainstem, default `~/.brainstem`; its
 `src/rapp_brainstem/.copilot_token` is read read-only and handed to workers as
 `GITHUB_TOKEN`). Credential values, worker keys and grant handles are never
 printed, logged, persisted or returned.
+
+## Operating the cell (health, logs, backups, upgrades, removal)
+
+```sh
+python3.11 -m brainstem_agent version --json
+python3.11 -m brainstem_agent doctor
+python3.11 -m brainstem_agent status --json
+python3.11 -m brainstem_agent logs --event 'turn.*' --since 2h --json
+python3.11 -m brainstem_agent stats --since 7d --json
+python3.11 -m brainstem_agent backup --json
+python3.11 -m brainstem_agent restore ~/.brainstem-agent/backups/20260923T120000Z --json
+python3.11 -m brainstem_agent export --output ~/brainstem-export --json
+python3.11 -m brainstem_agent prune --dry-run --json
+python3.11 -m brainstem_agent compact --json
+python3.11 -m brainstem_agent upgrade --from ../brainstem-agent-new --dry-run --json
+python3.11 -m brainstem_agent rollback --json
+python3.11 -m brainstem_agent stop --drain --json
+python3.11 -m brainstem_agent uninstall --dry-run --json
+```
+
+- **One health model** (`health.py`). *Live* means the process is up and its loops run: for
+  the daemon, its control server answers and its schedule loop is alive; a cell that is not
+  live needs a (re)start. *Ready* means a turn can run now: the pinned Grail source verifies,
+  the worker interpreter is prepared, the Copilot credential is usable (present and not known
+  to be rejected), the sandbox works, the store opens with a schema this version reads, disk
+  space is above the floor, the warm worker is up and the MCP servers are healthy, and the
+  daemon is not draining. Every check has an `id`, `kind` (`liveness` or `readiness`), `ok`,
+  `required`, a `reason` and, when it fails, a `fix` (the command or action that repairs it).
+  `doctor` reports the installation's checks (its `checks` keep their earlier shape, plus
+  `reason`, `fix` and `required`; `health` has the summary), `status --json` has the
+  daemon's as `readiness` (without a daemon: not live, with the command that starts it), and
+  the daemon answers `GET /v1/health` (same bearer token as every route) and `GET
+  /v1/version`. `setup`, `restore`, `upgrade`, `rollback` and `compact` end with the same
+  summary; the daemon logs every change of readiness (`health.changed`). MCP health and
+  `operations.json` problems are advisory for `doctor` (they never block a turn) and required
+  for the daemon's readiness (MCP only).
+- **Version and release manifest** (`release.py`). `version --json` reports the product
+  version and version id (`<version>-<first 12 hex of the tree digest>`), the install kind
+  (`pip`, `source` or `home-version`), the Grail pin (repository, commit, version, kernel
+  SHA-256, inventory SHA-256 and file count), the store schema (version, SHA-256 of the
+  normalized schema, the older layouts it migrates, and the home's store as found,
+  read-only), the bridge and worker-lock SHA-256, the capability set, the installed versions
+  and whether this installation still matches its release manifest (exit 1 when it does not).
+  The manifest, `brainstem_agent/data/release-manifest.json`, is produced from the tree
+  (`PYTHONPATH=runtime python3.11 -m brainstem_agent.release --write`; `--check` exits 1 when
+  it is stale, and a unit spec enforces it) and lists every shipped file's SHA-256, the Grail
+  pin, the store schemas this version reads and migrates, the bridge and lock digests and the
+  capabilities.
+- **Backup and restore** (`backup.py`). `backup` writes a directory (0700, files 0600;
+  default `$BRAINSTEM_AGENT_HOME/backups/<UTC time>`, or `--output DIR`, new or empty): the
+  store copied with SQLite's online backup API (a consistent snapshot while the daemon runs,
+  integrity-checked; a store another connection keeps locked for 60 s fails the backup, with
+  nothing left behind, instead of waiting forever): conversations, memory and profile, skills,
+  schedules and the inbox,
+  receipts and journals; `state/mcp-pins.json`; `operations.json`; `reach.json` with its
+  secrets removed; and `manifest.json` with every file's SHA-256 and size, the store's schema
+  and row counts, and what was excluded and why. Excluded by default and reported: every MCP
+  server environment value, URL credentials and query strings, and any string shaped like a
+  credential (`--include-secrets` keeps `reach.json` as it is). Never included: the Copilot
+  credential (the cell never stores it), the daemon's token (`run/`), caches, worker trees,
+  logs, the derived search index and workspace files (back up project folders with your usual
+  tools). `restore DIR` verifies every digest (and that nothing unlisted is present) before
+  it writes anything and refuses on any mismatch; it restores into a new home, or with
+  `--replace` over an existing store after a safety backup of it (`backups/pre-restore-*`);
+  it refuses while the daemon runs, keeps an existing `reach.json` rather than its
+  secret-less copy, lists what must be re-entered, and ends with the health summary. A
+  backup of an older store is migrated on restore (with its own pre-migration copy); a backup
+  from a newer version (a higher store schema version, even with the same tables) is refused.
+  Restoring into a home at another path re-maps the in-home workspaces
+  (`workspaces/<name>`): their paths, and the memory namespaces derived from them, are
+  rewritten in the restored store (`remapped` in the result), so their memory, skills,
+  sessions, schedules and inbox stay visible and schedules run in the new home. Workspaces
+  outside the home keep their paths. Missing parents of `--output` are created 0700; an
+  existing parent keeps its permissions.
+- **Export** writes this workspace's and the profile's knowledge in portable formats:
+  `skills/<scope>-<name>.md` (markdown with frontmatter, importable with `skills import`),
+  `memory.jsonl` and `profile.jsonl` (one fact per line: `fact_id`, `scope`, `text`,
+  `created_at`, `updated_at`, `source_turn`), `sessions/<session_id>.jsonl` (one message per
+  line: `turn_id`, `role`, `content`, `state`, `at`) and `export-manifest.json` (formats and
+  SHA-256 of every file).
+- **Migration safety** (`state.py`). Opening a store looks first, read-only. An older layout
+  is copied aside with the online backup API (`state/pre-migration/*.sqlite3`, 0600,
+  integrity-checked) before the migration's single transaction runs; if the copy cannot be
+  written, nothing is migrated. A migration that is interrupted (even SIGKILL inside the
+  transaction, which `BRAINSTEM_AGENT_CRASH_AT=store.migrating` injects) leaves the original
+  store intact: SQLite rolls the transaction back on the next open, which migrates it again.
+  A store from a newer version (a higher schema version, or this version's tables plus unknown
+  ones) is refused with a clear message, without writing a byte.
+- **Upgrade and rollback** (`lifecycle.py`). The home keeps runtime versions side by side in
+  `versions/<version id>/` and names the active one in `versions/active.json`. `upgrade
+  --from PATH` takes a local release only (a checkout, its `runtime/`, a zipapp or a wheel;
+  nothing is downloaded): it verifies the release against its manifest, checks that it can
+  open this home's store (and has its Grail source and worker interpreter), takes a
+  pre-upgrade backup, drains the daemon (`POST /v1/drain`: the running turn and scheduled run
+  finish, nothing new starts; `--drain-timeout`, default 300 s, then it gives up unless
+  `--force`), keeps the running version installed, switches the active version, points the
+  LaunchAgent at it and restarts the daemon (same workspace). A new version that does not
+  come up is rolled back automatically: upgrade waits for a daemon answering as the new
+  version, also when the LaunchAgent starts it (up to 60 s,
+  `BRAINSTEM_AGENT_SERVICE_START_TIMEOUT`), and otherwise switches back, re-points the
+  LaunchAgent and restarts the previous version. From then on every command (the console script,
+  `python -m brainstem_agent`, the zipapp) continues in the active version, as do the daemon
+  and the LaunchAgent; a separately installed newer release is not redirected (it warns), and
+  `BRAINSTEM_AGENT_NO_REDIRECT=1` runs a command as installed. `rollback` switches to the
+  previous version when it can read the store. When the new version has already migrated the
+  store beyond it, rollback refuses and names the pre-upgrade backup; `rollback --restore
+  DIR` then puts that store back first (the current store goes to a safety backup, so later
+  changes are not lost but are not in the rolled-back store).
+- **Uninstall** (`lifecycle.py`). `uninstall --dry-run` lists exactly what `uninstall`
+  removes: this home's LaunchAgent plist (booted out first), the daemon (stopped), the cache
+  (when inside the home), worker trees, `run/`, logs and installed versions, and what it
+  keeps: the store, workspaces, backups and settings, a cache outside the home, the installed
+  RAPP Brainstem (never touched) and the runtime package itself (`pip uninstall
+  brainstem-agent`, or delete its venv or zipapp). `--remove-home` also removes the whole home,
+  only with `--confirm` followed by the home's exact path (exit 2 otherwise), and never when
+  the home overlaps the installed brainstem, is or holds your home folder, or holds entries
+  Brainstem Agent did not create. `BRAINSTEM_AGENT_LAUNCH_AGENTS` and
+  `BRAINSTEM_AGENT_LAUNCHCTL` redirect the LaunchAgents directory and launchctl, as for
+  `service`.
+- **Credential lifecycle** (`credential_state.py`). When GitHub rejects the sign-in (revoked,
+  expired or replaced) or the account has no Copilot access, as unchanged Grail reports at
+  worker start or mid-turn, the cell records an explicit state in `state/credential.json`
+  (0600): the kind, a reason, when, and the credential file's identity (device, inode, size,
+  modification time), never the credential or anything derived from its value. New turns
+  (and scheduled runs) are then refused at once with guidance, before anything is written or
+  started, and the daemon stops starting workers: no retry storm. Replacing the token in the
+  installed brainstem's file (signing in again) changes that identity: the next turn, or the
+  daemon's next idle pass, uses the new token without a restart, and success clears the
+  state. After a backoff (10 minutes, doubling to 6 hours) one probe is allowed. `doctor`,
+  `status` and `/v1/health` show the state with its fix. A replay of a retained turn is never
+  refused.
+- **Resource hygiene** (`hygiene.py`). `$BRAINSTEM_AGENT_HOME/operations.json` (optional;
+  every key defaults) holds the policy:
+  `{"retention": {"receipts_days": 90, "run_events_days": 30, "egress_days": 30,
+  "inbox_days": 90, "inbox_keep_per_schedule": 20, "pre_migration_days": 30}, "logs":
+  {"max_bytes": 1048576, "keep": 3, "worker_logs_keep": 20, "worker_log_max_bytes":
+  4194304}, "disk": {"min_free_mb": 512}}` (`BRAINSTEM_AGENT_MIN_FREE_MB` overrides the
+  floor; bad values keep their defaults and show as an advisory). Logs are bounded: the event
+  log rotates at `max_bytes` keeping `keep` parts, the daemon's output (`logs/daemon.log`) is
+  rotated in place (copy, then truncate) by the daemon, a worker's log rotates at 4 MiB, and
+  only the newest `worker_logs_keep` worker logs are kept. `prune --dry-run` reports, per
+  category, exactly what `prune` then deletes: finished receipts older than the cutoff (never
+  those of a turn in progress, nor those a schedule's taint provenance reads), streamed run
+  events, finished inbox entries (each schedule keeps its newest ones), egress log entries and
+  old pre-migration copies; turns and their replay keys are never pruned. `compact` runs
+  SQLite's VACUUM (it needs the home to itself: stop the daemon first, and room for a copy of
+  the store). Below the disk floor new turns are refused with a clear message before anything
+  is written (`evidence.refused` is `disk`), and `doctor`/`status` show the fix.
+- **Errors are JSON.** A store that cannot be opened or a refused workspace is reported as
+  `{"ok": false, "error": ...}` with exit 1 under `--json` (one `Brainstem Agent: ...` line
+  on stderr otherwise), never as a traceback; `doctor --deep` reports a workspace the guard
+  refuses (for example one that contains the home) as its failing deep check.
+- **Local observability** (`observe.py`). The event log (`logs/events.jsonl`, 0600) records
+  operational events: `turn.started`, `turn.finished` (state, seconds, Grail requests, tool
+  calls, error), `turn.refused` (reason), `credential.invalid`, `.changed` and `.recovered`,
+  `daemon.started`, `.draining`, `.stopped`, `worker.warm_failed`, `health.changed`,
+  `logs.rotated`, `store.migrated`, `backup.created`, `restore.completed`,
+  `upgrade.completed`, `rollback.completed` and `prune.completed`; never the owner's words,
+  answers or credentials. `logs` reads it (`--source events`, the default) or the daemon's
+  output (`daemon`), the workers' logs (`worker`) or the outbound request log (`egress`), with
+  `--since`/`--until` (`30m`, `2h`, `7d` or an ISO date-time), `--level`, `--event` (a name or
+  pattern), `--turn`, `--grep` and `--limit`. `stats --json` computes from the store, for the
+  whole home or one `--workspace`, in a `--since`/`--until` window: turns and outcomes
+  (`partial` from the journal), the uncertain count (turns and receipts), latency
+  percentiles (nearest rank p50/p90/p95/p99, max and mean), Grail requests, helpers, tool
+  usage (calls, states and duration percentiles per tool) and scheduled runs (states, fire
+  delay percentiles, late runs, missed instants, skips); refused turns come from the event
+  log. Nothing leaves the machine.
 
 ## Tests and evidence
 
@@ -648,16 +1001,25 @@ Grail without inference; the live suites spend real Copilot inference:
 
 ```sh
 export PYTHONPATH=runtime:runtime/tests
-BRAINSTEM_AGENT_REAL_CORE=1 python3.11 -m unittest test_real_core test_real_lifeline test_real_daemon test_real_learning test_real_longturn test_real_reach
+BRAINSTEM_AGENT_REAL_CORE=1 python3.11 -m unittest test_real_core test_real_lifeline test_real_daemon test_real_learning test_real_longturn test_real_reach test_real_operable
 BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live
+BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_operable
 BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_daemon
 BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_learning
 BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_longturn
 BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_reach
+BRAINSTEM_AGENT_LIVE=1 python3.11 -m unittest test_live_companion
 ```
 
-They use about 12 (`test_live`), 10 (`test_live_daemon`) and 13 (`test_live_learning`) live
-turns, and about 12 (`test_live_longturn`) and 6-10 (`test_live_reach`) Grail requests.
+They use about 12 (`test_live`), 10 (`test_live_daemon`), 13 (`test_live_learning`) and 2
+(`test_live_operable`) live turns, and about 12 (`test_live_longturn`), 6-10
+(`test_live_reach`) and 10 (`test_live_companion`, which needs the browser tooling below)
+Grail requests. `test_real_operable` installs the runtime into a fresh venv offline (the
+zipapp on 3.12 or newer; on 3.11 it skips, naming the setuptools it found, when that venv
+cannot build a wheel offline, as does the unit tier's offline install spec) and runs
+`setup` and `doctor --deep` in a fresh home, and starts real daemons for backup, upgrade and
+credential specs (the credential spec copies the installed sign-in into a temporary stand-in
+brainstem for its duration; the real file is only read).
 Setting `BRAINSTEM_AGENT_LIVE_REQUEST_BUDGET` (for example to `12`) caps every live chat's
 Grail requests in one test process. The offline retrieval evaluation and the evidence
 runner:
@@ -669,6 +1031,22 @@ python3.11 runtime/tests/run_acceptance.py --real-core --live \
 ```
 
 `retrieval_eval.py` takes `--tune` (rerun the grid search) and `--output FILE`.
+
+The companion's browser specs are dev-only and need Node.js 22 or newer: `npm ci` installs
+Playwright and axe from `package.json`, and the specs run in Playwright's own headless
+Chromium (`npx playwright install chromium` fetches it; `BRAINSTEM_AGENT_CHROMIUM` can name
+a headless shell instead). They are separate from the public site's own tests
+(`playwright.config.js`). The unit tier runs them through `test_companion_browser` when
+Playwright is installed and skips them otherwise; to run them directly:
+
+```sh
+npx playwright test -c playwright.companion.config.js hostile.spec.js companion.spec.js
+```
+
+`BRAINSTEM_AGENT_TEST_PYTHON` names the interpreter that runs their daemons (default:
+`python3.11` on `PATH`), and `BRAINSTEM_AGENT_NPX` names `npx` for the Python bridges when it
+is not on `PATH`. `live.spec.js` is the live companion journey that `test_live_companion`
+runs.
 
 The unit tier makes no outbound request and needs no credential or Grail download. Tests
 that copy the pinned Grail source (some unit specs, and every real-core and live test)
@@ -689,7 +1067,11 @@ long turns, review findings, owner commands, pinning).
 
 Run the gated tiers with `runtime/tests` on `PYTHONPATH` (as above). Every acceptance test
 is tagged with the criteria it proves: A1-A11 (Cell v1), B1-B12 (always-on), C1-C12
-(learning), D1-D12 (long-horizon) and E1-E12 (reaching). `run_acceptance.py` writes
+(learning), D1-D12 (long-horizon), E1-E12 (reaching), G1-G12 (companion surfaces) and H1-H12
+(operable: install, version and manifest, backup/restore/export, migration safety,
+upgrade/rollback, uninstall, health, credential lifecycle, resource hygiene, observability;
+`test_cell_operable_*`, including `test_cell_operable_hardening` for the failure classes
+found by review, `test_real_operable`, `test_live_operable`). `run_acceptance.py` writes
 sanitized evidence with classes `unit`, `real-core` and `live` and environment
 `macos-seatbelt` (`--label` names the run in the evidence; `--only <pattern>` reruns single
 tests; `--exclude <module>` leaves a module out and `--merge <evidence.json>` adds the records

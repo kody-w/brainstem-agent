@@ -3,7 +3,7 @@
   "updated": "2026-09-23",
   "runtime": {
     "name": "Brainstem Agent",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "platform": "macOS only (qualified on Apple silicon); needs /usr/bin/sandbox-exec",
     "grail": {
       "repository": "kody-w/rapp-installer",
@@ -62,7 +62,7 @@
       "title": "Connect",
       "group": "primary",
       "status": "not-yet",
-      "summary": "Messaging apps and email are not connected yet; today you use the terminal, and tools connect through MCP.",
+      "summary": "Messaging apps and email are not connected yet; today you use the terminal or the web companion on this Mac, and tools connect through MCP.",
       "limits": ["No messaging channels."],
       "evidence": [
         { "kind": "docs", "ref": "runtime/README.md" }
@@ -169,22 +169,30 @@
       "id": "receipts",
       "title": "Receipts and recovery",
       "group": "secondary",
-      "status": "partial",
-      "summary": "Every tool call gets a receipt (succeeded, failed or uncertain); a repeated request with an idempotency key replays without a new model call; interrupted work is recovered or marked uncertain.",
-      "limits": ["Backup and restore, upgrade and rollback, and credential rotation are not there yet."],
+      "status": "available",
+      "summary": "Every tool call gets a receipt (succeeded, failed or uncertain); repeated requests replay without a new model call; interrupted work is recovered or marked uncertain; backup writes a verified snapshot while the daemon runs and restore checks every digest before writing; export writes skills, memory, profile and sessions in portable formats; upgrade installs a local release side by side and switches back by itself if it does not come up, and rollback returns to the previous version; a rejected sign-in is an explicit state (turns refused, no retries), and signing in again is picked up without a restart.",
+      "limits": ["Backups are local, unencrypted and started by you, and leave out workspace files; upgrades only from a local checkout, zipapp or wheel (nothing is downloaded); a revoked sign-in can keep working until the core's cached Copilot token expires (about 25 minutes)."],
       "evidence": [
         { "kind": "tests", "ref": "runtime/tests/test_cell_durability.py" },
-        { "kind": "tests", "ref": "runtime/tests/test_cell_state_v2.py" }
+        { "kind": "tests", "ref": "runtime/tests/test_cell_state_v2.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_operable_backup.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_operable_upgrade.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_cell_operable_credential.py" },
+        { "kind": "docs", "ref": "runtime/README.md" }
       ]
     },
     {
       "id": "companion",
       "title": "Terminal session and web companion",
       "group": "secondary",
-      "status": "in-development",
-      "summary": "An interactive terminal session and an owner-only local web companion are being built on the same engine.",
-      "limits": ["Not released; today you use the commands."],
+      "status": "available",
+      "summary": "brainstem-agent on its own opens an interactive terminal session (streamed answers, slash commands, Ctrl-C cancels the turn and keeps the session); open prints a one-time link to an owner-only web companion served on 127.0.0.1 (chat, sessions, schedules and inbox, skill review, memory and profile, MCP and the outbound request log).",
+      "limits": ["This Mac only; each sign-in link works once, in one tab; the terminal is a line session, not a full-screen interface."],
       "evidence": [
+        { "kind": "tests", "ref": "runtime/tests/test_companion_repl.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_companion_api.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_companion_security.py" },
+        { "kind": "tests", "ref": "runtime/tests/test_companion_browser.py" },
         { "kind": "docs", "ref": "runtime/README.md" }
       ]
     },

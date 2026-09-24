@@ -700,6 +700,10 @@ pre code {
   color: var(--cobalt);
 }
 
+.step-copy > .explain-list + p {
+  margin-top: 1rem;
+}
+
 .install-panel {
   min-width: 0;
   border: 1px solid var(--rule);

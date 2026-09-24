@@ -1,0 +1,124 @@
+{
+  "bridge_sha256": "f0d17963d9db47d4a7f60b421c9d73e95c13891b3c591311421d873738bc2178",
+  "capabilities": [
+    "agents.delegate",
+    "files.read",
+    "files.write",
+    "memory.read",
+    "memory.write",
+    "processes.run",
+    "schedule.read",
+    "schedule.write",
+    "scripts.run",
+    "sessions.read",
+    "shell.run",
+    "skills.read",
+    "skills.write",
+    "web.fetch",
+    "web.search"
+  ],
+  "dynamic_capabilities": [
+    "mcp.<server> for each server in reach.json"
+  ],
+  "files": {
+    "brainstem_agent/__init__.py": "4bd82927d9b582cc0bf4f5930fed438a7ca70ec0ba6bfe50c13f253e82521f5f",
+    "brainstem_agent/__main__.py": "93c3f7fc0f46bf3f19038c871263dcb9c292400f72b706e1ad305ad17cedcf0f",
+    "brainstem_agent/adapter.py": "27f81adaf03d9e18951c011e9d25273ad2354b08e6187bc647924e483449dfb5",
+    "brainstem_agent/api.py": "40cb54f2b431be13861633f2d91547b0bc370ba9750a583197a66c716568b464",
+    "brainstem_agent/backup.py": "67b5da036947aebfc73df5642905e6e74dc304f5eb1f1115e7f91d1c748c593c",
+    "brainstem_agent/bridge/rapp_bridge_agent.py": "f0d17963d9db47d4a7f60b421c9d73e95c13891b3c591311421d873738bc2178",
+    "brainstem_agent/bridge/rapp_probe_agent.py": "398c1cfe0132945bdf092c0395688589ac39901bd2b57350981f1eae1326b746",
+    "brainstem_agent/broker.py": "2873df9a06c8e3d5fdbd57dfda72ee1a2cae4bcb409fe18f1dd6f63ebb46ee6f",
+    "brainstem_agent/cli.py": "6ef99df3aa923ad40dcaf7c033178c22ab3cd17080e8d925f2af60faa70dbc1a",
+    "brainstem_agent/companion.py": "ef80fed3302ffb3d50f60cec42e904f3ce2a266e79c18f04f6d52c6450a25d07",
+    "brainstem_agent/credential_state.py": "6e2c183125036bbe8d1e113778a4a47e70952e7af42495172563012a89196e7c",
+    "brainstem_agent/credentials.py": "ebe7a6b83c20b48f46bf111db8ef1667f859a9112cab4ce883624fefea8c7dac",
+    "brainstem_agent/daemon.py": "84bb9081fb4b33025d121942f801d11791866ef029ea23eb92aeea8fe7db1816",
+    "brainstem_agent/data/grail-inventory.json": "d6f592fa36e8a6505abefd6e3c6abdfe45b83cf0cca30f97bc90b654ee9c0095",
+    "brainstem_agent/data/grail-requirements.lock": "e20644b1e5a8ee7a69e6cd4ff5195cde316dfc26a84fc07f6e8dc178b2e68008",
+    "brainstem_agent/data/soul.md": "081f92e21aba896ca8d09b1d6c114ead3cf223623e0a21712db37cf45c8e2239",
+    "brainstem_agent/grail.py": "8b7edc2320dc7b34b37af2393ef868b4951f20e624c0266919dc2c8ce01b8ae5",
+    "brainstem_agent/harness.py": "4edc35ea1d690f986081cc44abb643b13dab9dbb4210a6ea2af4a3e68984dd69",
+    "brainstem_agent/health.py": "14fdcdd74ed162040b4c530b3dceb8d1bc818ed3a29c3ac67cdfa1e1b0718a58",
+    "brainstem_agent/host.py": "43cea64ab2e75fa05c4e39bbe6a8a01425ce8d3a255da431fa5b3d017011b94a",
+    "brainstem_agent/hygiene.py": "849f59da6fbd1b3456d6ebba099731aee7cc536e8a2f537b9cd14909c07336f5",
+    "brainstem_agent/knowledge.py": "7859de5f2a12923553497c74e847f1edb9d291f3bd8062b3480a964522988c27",
+    "brainstem_agent/lifecycle.py": "a1bbf9157423346cc0b0d1ffb71f262b1eee652d9496b494c7afddc9e26b77c8",
+    "brainstem_agent/lifeline.py": "9f06450937e512f16511b9ab8691e10c528ac227d64008f336c729306d29b95c",
+    "brainstem_agent/longturn.py": "cdf2e64e4108023b9fd78350205937469055c8b1602247c9789b0ae44c11ee9e",
+    "brainstem_agent/observe.py": "7462e7a46eead6265b24679e00f2d63627819231800a80be6f5a151b75fe241f",
+    "brainstem_agent/organs/__init__.py": "7243616e3aa6a280e0aa311df651be96a15b25976e72f102ff9a7b16c35c0b89",
+    "brainstem_agent/organs/base.py": "6e669d299a50542f83c6a20f3c28db20558bc33cde511316f93903f31a23a0ea",
+    "brainstem_agent/organs/delegate.py": "c3d25d4f71f16b3690b239911e3bf7fa0964cd038035b67a9bc09951f607d533",
+    "brainstem_agent/organs/files.py": "fbfd093d0d0d7c4bb6d4ee3c476f061221fd4e1d43aadf3669ab3a3cf6b5ee7c",
+    "brainstem_agent/organs/mcp.py": "f9a4aaf9247146211325c23f4273d48f57a76a8e1cba31ceea9ce32fe6c32b8d",
+    "brainstem_agent/organs/memory.py": "414e0080ab3d7a463f2cad924a3011b436102e5bfe3f9e53c11582e06f0f4639",
+    "brainstem_agent/organs/processes.py": "4c8e57950e493e0aceae07cee2680638c62230c28b93217649ad850145cffe6e",
+    "brainstem_agent/organs/scripts.py": "33d61340e8c433466183c8cb118d7ce345ac98bdfdba82b7eea6e49ac57ffc68",
+    "brainstem_agent/organs/sessions.py": "5962541a88d2e2660a49f26a4bce01f66170561b972b93e22d7ec6b7f86b037f",
+    "brainstem_agent/organs/shell.py": "33b07fc26c772c9dc255052f0323b1ced1338b24218d27b3b1e05c50a7b2fdc0",
+    "brainstem_agent/organs/skills.py": "6510098848605de200590fff556f3e0d4ef9d119906ec725f66a7b720e0a6e2b",
+    "brainstem_agent/organs/web.py": "66c4e0bbab52ab67d5ecfbac117bcdf0c940e07387540990c12c83d32a5f2c64",
+    "brainstem_agent/paths.py": "6e0bd253006f0deec131699423676fa6e58323f86771892c11f9f74ede944a7d",
+    "brainstem_agent/policy.py": "5c31b7e93706b2df96a6d2ca14cefd6002fc126cd0174f41e944e67b399beaa2",
+    "brainstem_agent/release.py": "d1a3220196d1c80bd9af82c6a41eddcd35975bee948208396aea932e3dd7ac88",
+    "brainstem_agent/repl.py": "bceeaf4818a862903e16cbf22ff05dd81105a5f4e276b2046b5592e06c8a08af",
+    "brainstem_agent/retrieval.py": "a3b610cb80219b2285bbab791f69cde3f9e0725e4c311e6e71bc8130d4f37d22",
+    "brainstem_agent/sandbox.py": "cd4f23362e4593dae0ade9dd48257c2415d8b626eeca3dbcb410c2a86dd2f66a",
+    "brainstem_agent/schedules.py": "b350c6fda003f8f43ca29857aaea13968ff3718f9122ad1c57722665a259006e",
+    "brainstem_agent/session_index.py": "b54c0415c633e4d21484e335a0242d47d6343fffbc536923823353bd80f3881c",
+    "brainstem_agent/state.py": "76cf561e4c4fc8f8850940979190d208f4cbd20ccbb5ac202c6d650d67ff1c5e",
+    "brainstem_agent/streaming.py": "fa33e02cbfbc6cf67f62ed82e5e3a05f6337948df282545df623bef678a91edf",
+    "brainstem_agent/surface.py": "76e71c7360148ec7cef5bc716e060752fb3a938ee1349dfd91c90935261d005e",
+    "brainstem_agent/ui/app.css": "7553d58d85f4a0d8d608fab3b73c7006afddc6d6c701f4ae599f040a925962b0",
+    "brainstem_agent/ui/app.js": "c9d24789c818abfebf35276f2cdfd4dbac83cf1429311db77dcc3329dad4b42f",
+    "brainstem_agent/ui/icon.svg": "d2a0e04bc8b0a64863638983543a91140a73c324bc97b1a6a817db0336d76f59",
+    "brainstem_agent/ui/index.html": "bb4feaa883d85ba9fe14e759f9de05a5856afb7b915109b8a1fcea5240618192",
+    "brainstem_agent/ui/login.html": "df4e28b0672c2e78c6527fe5e62986b899e2e896b5b6e10040e4d04526de9230",
+    "brainstem_agent/ui/login.js": "0727d3f1a58efb0d1ff14591be98c2a0dc43f63b29388778aa20524673f973e8",
+    "brainstem_agent/views.py": "e7e6d036cbd6277d3b0489dd7c8fc8b2bebc300b78fd179ee626686df7cc6bed",
+    "brainstem_agent/worker.py": "a765fbcf01375f867f5017ed31b0007864a1512027e76265f41f1275cdcdbf1c"
+  },
+  "format": 1,
+  "grail": {
+    "commit": "49db80c8c6b6caa7647369beaf477d374a8f293c",
+    "inventory_files": 30,
+    "inventory_sha256": "d6f592fa36e8a6505abefd6e3c6abdfe45b83cf0cca30f97bc90b654ee9c0095",
+    "kernel_sha256": "bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4",
+    "repository": "kody-w/rapp-installer",
+    "version": "0.6.16"
+  },
+  "package": "brainstem-agent",
+  "product": "Brainstem Agent",
+  "requires_python": ">=3.11",
+  "store": {
+    "migrates_from": [
+      {
+        "schema_sha256": "a61b887aa6fcb863a15d4cf240ee1188095b573497f6a8f7f5c73c2c3e00c394",
+        "schema_version": 1
+      },
+      {
+        "schema_sha256": "6dcfb4890d3ed338f5f11ee127185475180c2558428ca27b051d3f7b5e62fa58",
+        "schema_version": 2
+      },
+      {
+        "schema_sha256": "a8fb534cf4db8b3be80d3a145127fe9dc27bd7ee828a4d17cf86e2fda7ece82f",
+        "schema_version": 2
+      },
+      {
+        "schema_sha256": "91f3c849dab6bd2cf9a59b8ab37642e354af67d7d149e4ab939b47faab2b3404",
+        "schema_version": 2
+      }
+    ],
+    "reads": [
+      {
+        "schema_sha256": "b611626f9d87cbc154c39ad3a0ef5fcb308844dd86d85da0ae675ce6ee077d2d",
+        "schema_version": 2
+      }
+    ],
+    "schema_version": 2
+  },
+  "tree_sha256": "45e7e410cc80fb8432a9e5bbb76007292612b24a27a4b78b557cff6236005859",
+  "version": "0.2.0",
+  "worker_lock_sha256": "e20644b1e5a8ee7a69e6cd4ff5195cde316dfc26a84fc07f6e8dc178b2e68008"
+}

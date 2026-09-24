@@ -274,15 +274,20 @@ class CliSignalTests(CliCase):
         fcntl.flock(lock, fcntl.LOCK_EX)
         process = self.spawn(["chat", "hello", "--workspace", str(self.workspace), "--json"])
         database = state / "agent.sqlite3"
-        self.assertTrue(wait_until(database.exists, 15.0), "the CLI never opened its home")
-        time.sleep(1.0)
-        signalled = time.monotonic()
+        # The signal handler is installed before the home is opened; the CLI then waits for
+        # the lock, which it has open while it waits (seen with lsof where it exists).
+        self.assertTrue(wait_until(database.exists, 30.0), "the CLI never opened its home")
+        if os.path.exists("/usr/sbin/lsof"):
+            self.assertTrue(wait_until(lambda: str(state / "host.lock") in subprocess.run(
+                ["/usr/sbin/lsof", "-p", str(process.pid), "-Fn"], capture_output=True,
+                text=True).stdout, 30.0), "the CLI never waited for the home lock")
         process.send_signal(signal.SIGINT)
         try:
-            out, err = process.communicate(timeout=5)
+            out, err = process.communicate(timeout=HANG_GUARD)
         except subprocess.TimeoutExpired:
             self.fail("SIGINT was ignored while the turn waited for the home lock")
-        self.assertLess(time.monotonic() - signalled, 5)
+        # An ignored SIGINT would end "failed" (busy) once the lock wait gives up; only the
+        # honoured one ends "cancelled" with exit 4, before any turn.
         self.assertEqual(process.returncode, 4, err[-400:])
         report = json.loads(out)
         self.assertEqual(report["state"], "cancelled")

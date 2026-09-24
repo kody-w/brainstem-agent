@@ -81,11 +81,14 @@ CANARY_TOKEN = "ghu_" + "Canary" + secrets.token_hex(15)
 def criteria(*ids: str):
     """Tag a test with the acceptance criteria it proves (read by run_acceptance):
     A1-A11 (Cell v1), B1-B12 (always-on cell), C1-C12 (learning cell), D1-D12
-    (long-horizon cell) and E1-E12 (reaching cell)."""
+    (long-horizon cell), E1-E12 (reaching cell), G1-G12 (companion surfaces) and H1-H12
+    (operable cell)."""
     known = ({f"A{number}" for number in range(1, 12)} | {f"B{number}" for number in range(1, 13)}
              | {f"C{number}" for number in range(1, 13)}
              | {f"D{number}" for number in range(1, 13)}
-             | {f"E{number}" for number in range(1, 13)})
+             | {f"E{number}" for number in range(1, 13)}
+             | {f"G{number}" for number in range(1, 13)}
+             | {f"H{number}" for number in range(1, 13)})
     for item in ids:
         if item not in known:
             raise ValueError(f"unknown criterion {item}")
@@ -97,11 +100,41 @@ def criteria(*ids: str):
     return mark
 
 
+def stop_daemons_in(path: Path, *, wait: float = 15.0) -> list[int]:
+    """Stop the daemon of a home at ``path`` or one level below it (by the pid in its private
+    record, SIGTERM then SIGKILL), so no test daemon outlives the home it serves."""
+    from brainstem_agent import daemon
+
+    path, stopped = Path(path), []
+    try:
+        homes = [path, *(item for item in path.iterdir() if item.is_dir())]
+    except OSError:
+        return stopped
+    for home in homes:
+        record = daemon.read_record(home)
+        if record is None:
+            continue
+        pid = int(record["pid"])
+        try:
+            os.kill(pid, 15)
+        except OSError:
+            continue
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline and pid_running(pid):
+            time.sleep(0.05)
+        if pid_running(pid):
+            kill_quietly(pid, group=False)
+        stopped.append(pid)
+    return stopped
+
+
 def remove_tree(path: Path) -> None:
-    """Remove a test tree even when it holds read-only cache files or dirs."""
+    """Remove a test tree even when it holds read-only cache files or dirs; a daemon still
+    serving a home in it is stopped first."""
     path = Path(path)
     if not path.exists():
         return
+    stop_daemons_in(path)
     for root, directories, _files in os.walk(path):
         for name in directories:
             try:

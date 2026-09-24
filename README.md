@@ -12,7 +12,9 @@ public site and **Brainstem Agent**, the always-on agent runtime built around th
 
 Brainstem Agent runs the **unchanged Brainstem Grail core** (the stable core edition) inside
 private, sandboxed workers, and adds everything around it: the sandbox, memory, schedules,
-tools, helpers, web and MCP. The core is pinned to
+tools, helpers, web and MCP. You use it from an interactive terminal session or an
+owner-only web companion in your browser; other AI agents drive the same engine through
+`--json` commands. The core is pinned to
 [`kody-w/rapp-installer`](https://github.com/kody-w/rapp-installer) commit
 `49db80c8c6b6caa7647369beaf477d374a8f293c` (version 0.6.16, kernel `brainstem.py` SHA-256
 `bd55a7f0bcf5efd3f7966ca39bb146da3c25fda9a0b1ce5ba587919d3c3775f4`). It is never modified
@@ -25,7 +27,7 @@ organs = tools).
 
 ## Status
 
-Experimental, version 0.1.0; interfaces may change. **macOS only**, qualified on Apple
+Experimental, version 0.2.0; interfaces may change. **macOS only**, qualified on Apple
 silicon. It is not a hosted service. The Brainstem core installer supports Linux and
 Windows; the agent runtime does not yet.
 
@@ -79,7 +81,47 @@ the agent creates land in its workspace, by default
 `~/.brainstem-agent/workspaces/default/` (choose another with `--workspace DIR`). Stop the
 daemon with `.venv/bin/brainstem-agent stop`. Every command accepts `--json`, so another AI
 agent can drive it. Commands, options and internals are documented in
-[`runtime/README.md`](runtime/README.md).
+[`runtime/README.md`](runtime/README.md), including an offline install (pip offline on Python
+3.11 needs setuptools 70.1 or newer, or the `wheel` package, in the venv; otherwise the
+single-file zipapp, which works with any Python 3.11 or newer) and the operations commands:
+`version`, health in `doctor` and `status`, `logs`, `stats`, `backup`, `restore`, `export`,
+`prune`, `compact`, `upgrade`, `rollback` and `uninstall` (see "Operating the cell").
+
+**Keep it healthy:**
+
+```sh
+.venv/bin/brainstem-agent version
+.venv/bin/brainstem-agent status
+.venv/bin/brainstem-agent backup
+.venv/bin/brainstem-agent restore <backup-directory>
+.venv/bin/brainstem-agent upgrade --from <new-checkout> --dry-run
+.venv/bin/brainstem-agent rollback
+.venv/bin/brainstem-agent uninstall --dry-run
+```
+
+`status` says whether the daemon is live (running) and ready (a turn can run now), with a fix
+for each failing check. `backup` writes a verified copy of conversations, memory, skills,
+schedules and settings to `~/.brainstem-agent/backups/`; `restore` puts one into a fresh home
+(or over the current one with `--replace`, after a safety copy). `upgrade` installs a newer
+local checkout next to the current version and switches back by itself if it does not start;
+`rollback` returns to the previous version. `uninstall --dry-run` lists exactly what
+`uninstall` would remove; it never touches the installed RAPP Brainstem.
+
+**Terminal session and web companion:**
+
+```sh
+.venv/bin/brainstem-agent
+.venv/bin/brainstem-agent open
+```
+
+With no command, `brainstem-agent` opens an interactive terminal session: answers stream as
+they are written, tools and steps show one line each, slash commands (`/help` lists them)
+show sessions, skills, memory, schedules and the inbox, and Ctrl-C cancels the running turn
+but keeps the session. With the daemon running, `open` prints a one-time sign-in link for
+the web companion, which the daemon serves to this Mac only (127.0.0.1): chat, sessions,
+schedules and inbox, skill review, memory and profile, MCP servers and the outbound request
+log. Paste the link into your browser; it works once, for two minutes. Both show the same
+conversations, and every action in them is also a command.
 
 ## Capabilities
 
@@ -99,8 +141,8 @@ Status labels: **Available (experimental)**, **Partial**, **In development**, **
 | Tools and processes | Available (experimental) | Files, sandboxed shell, sandboxed Python scripts that call tools, background processes (start, poll, log, stop) | Inside the workspace; shell has no network |
 | Web | Available (experimental) | Fetches pages and searches (Wikipedia by default) with citations; private and cloud-metadata addresses are refused; owner egress policy and log; web content can never make it remember or forget | Search provider is Wikipedia unless configured |
 | MCP | Available (experimental) | Connects MCP servers (stdio and streamable HTTP) from a JSON config; tools appear as `mcp__server__tool`; each local server gets its own sandbox profile and permission | You add and trust servers yourself |
-| Receipts and recovery | Partial | Every tool call gets a receipt (succeeded, failed or uncertain); repeated requests with an idempotency key replay without a new model call; interrupted work is recovered or marked uncertain | Backup/restore, upgrade/rollback and credential rotation not yet |
-| Terminal session and web companion | In development | An interactive terminal session and an owner-only local web companion are being built on the same engine | Not released; today use the commands |
+| Receipts and recovery | Available (experimental) | Every tool call gets a receipt (succeeded, failed or uncertain); repeated requests replay without a new model call; interrupted work is recovered or marked uncertain; `backup` writes a verified snapshot while the daemon runs and `restore` checks every digest before writing; `export` writes skills, memory, profile and sessions in portable formats; `upgrade` installs a local release side by side and switches back by itself if it does not come up, `rollback` returns to the previous version; a rejected sign-in is an explicit state (turns refused, no retries) and signing in again is picked up without a restart | Backups are local, unencrypted and started by you, and leave out workspace files; upgrades only from a local checkout, zipapp or wheel (nothing is downloaded); rolling back across a store migration restores the pre-upgrade backup; a revoked sign-in can keep working until the core's cached Copilot token expires (about 25 minutes) |
+| Terminal session and web companion | Available (experimental) | `brainstem-agent` alone opens an interactive terminal session (streamed answers, slash commands, Ctrl-C cancels the turn and keeps the session); `open` prints a one-time link to an owner-only web companion served on 127.0.0.1 (chat, sessions, schedules and inbox, skill review, memory and profile, MCP and the outbound request log) | This Mac only; each sign-in link works once, in one tab; the terminal is a line session, not a full-screen interface |
 | Browser, images and voice | Not yet | No browser automation, image understanding or generation, transcription or speech yet | - |
 
 ## Privacy: what leaves your Mac
@@ -115,6 +157,9 @@ Status labels: **Available (experimental)**, **Partial**, **In development**, **
 - Brainstem Agent's own state (conversations, memory, skills, schedules, receipts and logs)
   stays in `~/.brainstem-agent` on your Mac. The sign-in is handed only to the core worker
   and is never printed, logged or saved in that state.
+- The web companion is served on 127.0.0.1 only and loads nothing from the internet.
+- Backups and exports are written where you choose on this Mac, unencrypted; they never
+  contain the sign-in, and MCP secrets are left out unless you ask for them.
 
 ## Security model (short version)
 
@@ -135,6 +180,12 @@ Status labels: **Available (experimental)**, **Partial**, **In development**, **
   data; after reading them, a turn can remember or forget only when your own words ask it to.
   Web requests to private, loopback and cloud-metadata addresses are refused, and every web
   and MCP HTTP request is logged.
+- **Owner-only companion.** The web companion answers only on 127.0.0.1 under its exact
+  address; a one-time link becomes an HttpOnly cookie plus a secret for that one tab, so
+  other pages and other local ports can neither read nor change anything; pages carry a
+  strict content security policy and show everything from the agent as plain text. The
+  terminal session shows escape sequences and bidi controls from outside text as visible
+  characters, and keeps credential-shaped input out of its history.
 
 This is a single-owner tool on one Mac. The macOS sandbox is not a virtual machine or
 container. Details and known limits: [`runtime/README.md`](runtime/README.md) and
@@ -143,10 +194,9 @@ container. Details and known limits: [`runtime/README.md`](runtime/README.md) an
 ## Not supported yet
 
 Messaging channels (Telegram, Discord, Slack, email); cloud, hosted or remote deployment;
-the agent runtime on Linux or Windows; browser automation, images and voice; backup and
-restore, upgrade and rollback, credential rotation; the interactive terminal session and web
-companion (in development). Work pauses while the Mac sleeps. Other model providers are not
-supported by design.
+the agent runtime on Linux or Windows; browser automation, images and voice; encrypted,
+scheduled or off-machine backups. Work pauses while the Mac sleeps. Other model providers are
+not supported by design.
 
 ## Development
 
@@ -181,10 +231,12 @@ real-core tier starts the unchanged core process without inference:
 
 ```sh
 BRAINSTEM_AGENT_REAL_CORE=1 PYTHONPATH=runtime:runtime/tests python3.11 -m unittest \
-  test_real_core test_real_lifeline test_real_daemon test_real_learning test_real_longturn test_real_reach
+  test_real_core test_real_lifeline test_real_daemon test_real_learning test_real_longturn test_real_reach \
+  test_real_operable
 ```
 
-The live tier spends real Copilot requests through your Brainstem's sign-in:
+The live tier spends real Copilot requests through your Brainstem's sign-in (the companion's
+browser specs also need the dev-only Playwright; see the runtime docs):
 
 ```sh
 BRAINSTEM_AGENT_LIVE=1 PYTHONPATH=runtime:runtime/tests python3.11 -m unittest test_live

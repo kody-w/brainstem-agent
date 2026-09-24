@@ -34,6 +34,14 @@ const BLOCKS = {
     '.venv/bin/brainstem-agent serve --detach',
     '.venv/bin/brainstem-agent status',
   ].join('\n'),
+  // The interactive session comes last: pasted as one block, the lines before it have run already,
+  // so it never reads them as messages, in any shell.
+  'command-everyday': [
+    '.venv/bin/brainstem-agent open',
+    '.venv/bin/brainstem-agent backup --output backups',
+    '.venv/bin/brainstem-agent version',
+    '.venv/bin/brainstem-agent',
+  ].join('\n'),
   'command-remove': [
     '.venv/bin/brainstem-agent stop',
     '.venv/bin/brainstem-agent service uninstall',
@@ -54,7 +62,7 @@ const CANON = {
   secondary: [
     ['skills', 'available'], ['long-work', 'available'], ['delegate', 'available'],
     ['tools', 'available'], ['web', 'available'], ['mcp', 'available'],
-    ['receipts', 'partial'], ['companion', 'in-development'], ['browser-media', 'not-yet'],
+    ['receipts', 'available'], ['companion', 'available'], ['browser-media', 'not-yet'],
   ],
 };
 const PRIMARY_TITLES = ['Deploy', 'Always available', 'Schedule', 'Connect', 'Remember', 'Isolate'];
@@ -230,7 +238,7 @@ test('links into this repository reach files and README headings that exist', as
   // The slug rules, on headings shaped like the ones GitHub renders in these READMEs.
   for (const [markdown, slugs] of [
     ['## Quick start (every command accepts `--json`)', ['quick-start-every-command-accepts---json']],
-    ['# Runtime (experimental, 0.1.0)', ['runtime-experimental-010']],
+    ['# Runtime (experimental, 0.2.0)', ['runtime-experimental-020']],
     ['### Setup (recommended)', ['setup-recommended']],
     ['### `GET /v1/status`', ['get-v1status']],
     ['## Backups & restores ##', ['backups--restores']],
@@ -265,7 +273,7 @@ test('puts the requirements checklist before every command, then two ordered ste
   await expect(requirements).toBeVisible();
   for (const phrase of [
     'macOS only', 'Apple silicon', '/usr/bin/sandbox-exec', 'Python 3.11 or newer', '3.13', 'Git',
-    'internet access', 'GitHub account with Copilot access', 'no API key', '0.1.0', 'not a hosted service',
+    'internet access', 'GitHub account with Copilot access', 'no API key', '0.2.0', 'not a hosted service',
   ]) {
     await expect(requirements).toContainText(phrase);
   }
@@ -276,7 +284,7 @@ test('puts the requirements checklist before every command, then two ordered ste
     return {
       checklistFirst: commands.length > 0 && commands.every(code => before(checklist, code)),
       steps: [...document.querySelectorAll('ol.install-steps > li')].map(step => step.id),
-      sequence: ['requirements', 'step-core', 'step-agent', 'first-run', 'doctor', 'troubleshooting', 'remove']
+      sequence: ['requirements', 'step-core', 'step-agent', 'first-run', 'everyday', 'doctor', 'troubleshooting', 'remove']
         .map(id => document.getElementById(id))
         .every((element, index, all) => element && (index === 0 || before(all[index - 1], element))),
     };
@@ -285,7 +293,7 @@ test('puts the requirements checklist before every command, then two ordered ste
 
   const agent = page.locator('#step-agent');
   await expect(agent.locator('.tag-strong', { hasText: 'macOS only' })).toBeVisible();
-  await expect(agent.locator('.tag-strong', { hasText: 'Experimental 0.1.0' })).toBeVisible();
+  await expect(agent.locator('.tag-strong', { hasText: 'Experimental 0.2.0' })).toBeVisible();
   await expect(agent).toContainText('--json');
   await expect(page.locator('#step-core')).toContainText('http://localhost:7071');
   await expect(page.locator('#doctor')).toContainText('doctor --deep');
@@ -295,6 +303,12 @@ test('puts the requirements checklist before every command, then two ordered ste
   }
   for (const phrase of ['stop', 'service uninstall', '~/.brainstem-agent', '~/.brainstem']) {
     await expect(page.locator('#remove')).toContainText(phrase);
+  }
+  // The everyday block explains each line beside it, in prose.
+  for (const phrase of ['/help', 'Ctrl-C', 'Ctrl-D', 'one-time sign-in link', '127.0.0.1',
+    'nothing opens a browser for you', 'backups', 'new or empty', 'unencrypted', 'version',
+    'The last line', 'paste the whole block']) {
+    await expect(page.locator('#everyday')).toContainText(phrase);
   }
 });
 
@@ -336,7 +350,9 @@ test('uses only brainstem-agent commands, flags and paths the runtime documentat
       expect(readme, `flag ${flag}`).toContain(flag);
     }
   }
-  expect([...subcommands].sort()).toEqual(['chat', 'doctor', 'serve', 'service', 'setup', 'status', 'stop']);
+  expect([...subcommands].sort()).toEqual([
+    'backup', 'chat', 'doctor', 'open', 'serve', 'service', 'setup', 'status', 'stop', 'version',
+  ]);
   for (const subcommand of subcommands) {
     expect(readme, `subcommand ${subcommand}`).toMatch(new RegExp(`brainstem[-_]agent ${subcommand}\\b`));
   }
@@ -413,6 +429,10 @@ test('command blocks carry no # notes, and Copy copies exactly the text each blo
       expect(line, `${id} has no inline # note`).not.toContain(' #');
       expect(line, `${id} has no comment line`).not.toMatch(/^\s*#/);
     }
+    // A line that opens the interactive session reads the terminal, so only a block's last line may.
+    const interactive = block.displayed.split('\n').slice(0, -1)
+      .filter(line => /(?:^|\/)brainstem-agent(?:\s+repl\b.*)?$/.test(line.trim()));
+    expect(interactive, `${id} opens the interactive session only on its last line`).toEqual([]);
     const before = await page.evaluate(() => window.copyCalls.length);
     await page.locator(`button[data-copy="${id}"]`).click();
     await expect.poll(() => page.evaluate(() => window.copyCalls.length)).toBe(before + 1);
@@ -489,7 +509,10 @@ test('capability manifest and page match both ways', async ({ page, request }) =
   expect(Object.keys(manifest)).toEqual(['schema', 'updated', 'runtime', 'status_labels', 'capabilities']);
   expect(manifest.schema).toBe('rapp-brainstem/site-capabilities-v1');
   expect(manifest.updated).toBe('2026-09-23');
-  expect(manifest.runtime).toMatchObject({ name: 'Brainstem Agent', version: '0.1.0' });
+  expect(manifest.runtime).toMatchObject({ name: 'Brainstem Agent', version: '0.2.0' });
+  const pyproject = readFileSync(join(ROOT, 'runtime', 'pyproject.toml'), 'utf8');
+  expect(manifest.runtime.version, 'the published version is the runtime package version')
+    .toBe(pyproject.match(/^version\s*=\s*"([^"]+)"/m)?.[1]);
   expect(manifest.runtime.platform).toMatch(/macOS/);
   expect(manifest.runtime.grail).toEqual({
     repository: 'kody-w/rapp-installer',
@@ -612,16 +635,31 @@ test('states requirements and limits in a visible section, not only in the FAQ',
   await expect(limits).toBeVisible();
   expect(await limits.evaluate(element => Boolean(element.closest('details')))).toBe(false);
   for (const phrase of [
-    'macOS only', 'Experimental, version 0.1.0', 'GitHub Copilot sign-in through your Brainstem',
+    'macOS only', 'Experimental, version 0.2.0', 'GitHub Copilot sign-in through your Brainstem',
     'Inference is remote', 'leave your Mac', 'Work pauses while the Mac sleeps', 'Not a hosted service',
-    'messaging channels', 'cloud deployment', 'browser automation', 'images and voice',
-    'The core stays unchanged', 'Linux and Windows',
+    'messaging channels', 'cloud or remote hosting', 'browser automation', 'images and voice',
+    'encrypted, scheduled or off-machine backups', 'The core stays unchanged', 'Linux and Windows',
   ]) {
     await expect(limits).toContainText(phrase);
   }
+  // What 0.2.0 ships is never listed as missing: backups and restores, upgrades and rollbacks,
+  // sign-in replacement, the terminal session and the web companion.
+  const notYet = normalize(await limits.locator('li', { hasText: 'Not yet:' }).textContent());
+  for (const shipped of [/backup and restore|restores?\b/i, /upgrade|rollback/i, /credential|sign-in/i,
+    /companion|terminal/i]) {
+    expect(notYet).not.toMatch(shipped);
+  }
+  const claims = normalize(await page.locator('[data-capability], #limits, #install, #questions')
+    .evaluateAll(parts => parts.map(part => part.textContent).join(' ')));
+  for (const stale of [
+    /\b(?:backup|restore|upgrade|rollback|credential rotation|companion)\b[^.;]*\bnot (?:there |released )?yet\b/i,
+    /not released/i, /being built/i, /credential rotation/i,
+  ]) {
+    expect(claims).not.toMatch(stale);
+  }
   const facts = page.getByRole('list', { name: 'At a glance' });
   await expect(facts).toBeVisible();
-  for (const phrase of ['macOS only', 'Experimental 0.1.0', 'Inference is remote', 'Not a hosted service']) {
+  for (const phrase of ['macOS only', 'Experimental 0.2.0', 'Inference is remote', 'Not a hosted service']) {
     await expect(facts).toContainText(phrase);
   }
 });
@@ -705,7 +743,7 @@ test('describes the current product in title, description, Open Graph and Twitte
   await expect(page).toHaveTitle(/^RAPP Brainstem\b.*\bexperimental\b.*\bmacOS\b/);
   const content = selector => page.locator(selector).getAttribute('content');
   const description = await content('meta[name="description"]');
-  for (const phrase of ['RAPP Brainstem', 'Brainstem Agent', 'experimental', '0.1.0', 'macOS only', 'unchanged', 'remote']) {
+  for (const phrase of ['RAPP Brainstem', 'Brainstem Agent', 'experimental', '0.2.0', 'macOS only', 'unchanged', 'remote']) {
     expect(description).toContain(phrase);
   }
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', CANONICAL);
@@ -719,7 +757,7 @@ test('describes the current product in title, description, Open Graph and Twitte
   for (const selector of ['meta[property="og:description"]', 'meta[name="twitter:description"]']) {
     const text = await content(selector);
     expect(text).toMatch(/experimental/i);
-    expect(text).toContain('0.1.0');
+    expect(text).toContain('0.2.0');
     expect(text).toContain('remote');
   }
   expect(await page.locator('link[rel~="icon"]').count()).toBeGreaterThan(0);
@@ -918,7 +956,7 @@ test('works by keyboard alone with a visible focus indicator on every stop', asy
   expect(stops.filter(stop => !stop.visibleFocus)).toEqual([]);
   const keys = stops.map(stop => stop.key);
   for (const key of ['#main', '#install', '#capabilities', 'radio:macos', 'command-macos', '#troubleshooting',
-    'command-agent', 'command-first-run', 'command-remove', '#run-schedule',
+    'command-agent', 'command-first-run', 'command-everyday', 'command-remove', '#run-schedule',
     'How are RAPP Brainstem and Brainstem Agent different?', 'https://github.com/kody-w/rapp-installer/issues']) {
     expect(keys, key).toContain(key);
   }

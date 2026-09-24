@@ -327,13 +327,25 @@ class MissedOverlapCrashTests(DaemonCase):
     @criteria("B6")
     def test_a_real_restart_applies_each_schedules_missed_run_policy(self):
         process = self.start()
-        late = self.cli("schedules", "create", "--prompt", "[[tools]]", "--in", "5")[1]
-        skip = self.cli("schedules", "create", "--prompt", "[[tools]]", "--in", "5",
+        # Created through the running daemon, due far enough away that no load can make them
+        # fire before the stop; once it has stopped they are made due at once, so every run
+        # is missed while the daemon is down, however long the stop took.
+        late = self.cli("schedules", "create", "--prompt", "[[tools]]", "--in", "3600")[1]
+        skip = self.cli("schedules", "create", "--prompt", "[[tools]]", "--in", "3600",
                         "--missed", "skip")[1]
+        self.assertTrue(late["daemon_running"] and skip["daemon_running"])
         run_cli(["stop", "--json"], self.env, timeout=60)
-        self.assertEqual(process.wait(15), 0)
-        due = late["schedule"]["next_fire_at"]
-        self.assertTrue(wait_until(lambda: time.time() > due + 1.5, 15))
+        self.assertEqual(process.wait(60), 0)
+        due = 0.0
+        for created in (late, skip):
+            code, edited = self.cli("schedules", "edit", created["schedule"]["schedule_id"],
+                                    "--in", "1")
+            self.assertEqual(code, 0, edited)
+            self.assertFalse(edited["daemon_running"])
+            due = max(due, edited["schedule"]["next_fire_at"])
+        self.assertEqual(self.cli("schedules", "show", skip["schedule"]["schedule_id"])[1]
+                         ["schedule"]["missed_policy"], "skip")
+        self.assertTrue(wait_until(lambda: time.time() > due + 1.5, 30))
         self.start()
         [ran] = self.wait_run(late["schedule"]["schedule_id"])
         self.assertEqual(ran["state"], "succeeded")
