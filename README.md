@@ -1,5 +1,9 @@
 # RAPP Brainstem
 
+<!-- rapp1:network-header:start -->
+[![RAPP/1](https://kody-w.github.io/rapp-hive-public/portfolio/badges/brainstem-agent.svg)](https://github.com/kody-w/rapp-hive-public/blob/main/portfolio/repos/brainstem-agent.md) · **New to RAPP?** [Start here: get your Brainstem →](https://github.com/kody-w/rapp-installer#start-here)
+<!-- rapp1:network-header:end -->
+
 **RAPP Brainstem** is a local-first AI agent engine: you install the Brainstem core on your
 computer and sign in with your GitHub account's Copilot access. This repository holds the
 public site and **Brainstem Agent**, the always-on agent runtime built around that core.
